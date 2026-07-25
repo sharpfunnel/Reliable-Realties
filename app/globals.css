@@ -1,26 +1,297 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Design tokens — extracted from the reference design
+   ========================================================================== */
+@theme {
+  /* Surfaces */
+  --color-cream: #f7f4ed; /* page background */
+  --color-cream-hero: #f5f1eb; /* hero gradient wash */
+  --color-shell: #faf8f6; /* raised panels (floor-plan card) */
+  --color-sand: #ede6da;
+  --color-sand-dark: #dcd4c8;
+  --color-line: #e2ddd6;
+
+  /* Ink */
+  --color-ink: #121820;
+  --color-ink-soft: #5f6670;
+  --color-ink-muted: #8a8f94;
+  --color-forest: #17251e;
+
+  /* Accent */
+  --color-gold: #b68a5e;
+  --color-gold-soft: #b68a5e4d;
+
+  /* Fonts */
+  --font-display: var(--font-cormorant), "Cormorant Garamond", serif;
+  --font-serif-alt: var(--font-playfair), "Playfair Display", serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Elevation */
+  --shadow-card:
+    0 24px 50px -20px rgb(0 0 0 / 0.15), inset 0 2px 20px 0 rgb(255 255 255 / 0.72);
+  --shadow-float:
+    0 24px 80px 0 rgb(0 0 0 / 0.35), inset 0 2px 20px 0 rgb(255 255 255 / 0.72);
+}
+
+/* Fluid display scale — linear interpolation between 390px and 1440px
+   viewports so headings match the reference at both ends. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --text-display-xl: clamp(2.813rem, 3.905vw + 1.861rem, 5.375rem); /* 45 → 86 */
+  --text-display-lg: clamp(2.375rem, 3.048vw + 1.632rem, 4.375rem); /* 38 → 70 */
+  --text-display-md: clamp(2.125rem, 2.857vw + 1.429rem, 4rem); /* 34 → 64 */
+  --text-display-sm: clamp(1.875rem, 1.714vw + 1.457rem, 3rem); /* 30 → 48 */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    /* offset anchor scrolling for the floating navbar */
+    scroll-padding-top: 96px;
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: var(--color-gold);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: color-mix(in srgb, var(--color-ink) 55%, transparent);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ==========================================================================
+   Typography utilities — mirror the reference's exact metrics
+   ========================================================================== */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+@utility display-xl {
+  font-family: var(--font-display);
+  font-size: var(--text-display-xl);
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.029em;
+}
+
+@utility display-lg {
+  font-family: var(--font-display);
+  font-size: var(--text-display-lg);
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.021em;
+}
+
+@utility display-md {
+  font-family: var(--font-display);
+  font-size: var(--text-display-md);
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.023em;
+}
+
+@utility display-sm {
+  font-family: var(--font-display);
+  font-size: var(--text-display-sm);
+  line-height: 1.05;
+  font-weight: 500;
+  letter-spacing: -0.031em;
+}
+
+/* Body copy */
+@utility body-lead {
+  /* 16px at 390px → 20px at 1440px, matching the reference's lead copy */
+  font-size: clamp(1rem, 0.381vw + 0.907rem, 1.25rem);
+  line-height: 1.6;
+  letter-spacing: -0.02em;
+}
+
+@utility body-base {
+  font-size: 1rem;
+  line-height: 1.6;
+  letter-spacing: -0.02em;
+}
+
+@utility body-sm {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+@utility body-xs {
+  font-size: 0.75rem;
+  line-height: 1.6;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+/* Frosted-glass surfaces used across hero cards, amenity labels and the form */
+/* Do not hand-write `-webkit-backdrop-filter` here: Lightning CSS adds vendor
+   prefixes itself, and supplying one makes it drop the standard property —
+   which silently disables the frost in browsers that no longer take the
+   `-webkit-` alias. */
+@utility glass-card {
+  background-color: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--shadow-card);
+}
+
+@utility glass-float {
+  background-color: rgb(255 255 255 / 0.72);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-float);
+}
+
+/* ==========================================================================
+   Scroll-reveal — driven by IntersectionObserver (see useReveal hook).
+   Elements start hidden and animate in once when they enter the viewport.
+   ========================================================================== */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(var(--reveal-y, 28px));
+  filter: blur(var(--reveal-blur, 6px));
+  transition:
+    opacity 0.85s var(--ease-out-soft),
+    transform 0.85s var(--ease-out-soft),
+    filter 0.85s var(--ease-out-soft);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal="in"] {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+
+/* Re-usable entrance used by content that swaps in place (floor-plan panel) */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   Marquee — testimonial rows scroll in opposite directions and pause on hover
+   ========================================================================== */
+@keyframes marquee-left {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes marquee-right {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 1.25rem;
+  animation-duration: var(--marquee-duration, 60s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.marquee-track--left {
+  animation-name: marquee-left;
+}
+
+.marquee-track--right {
+  animation-name: marquee-right;
+}
+
+.marquee:hover .marquee-track,
+.marquee:focus-within .marquee-track {
+  animation-play-state: paused;
+}
+
+/* Fade the marquee edges into the page background */
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+/* ==========================================================================
+   Accessibility — respect reduced-motion preferences everywhere
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+
+  .marquee-track {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
