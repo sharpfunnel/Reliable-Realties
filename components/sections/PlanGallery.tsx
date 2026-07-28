@@ -268,7 +268,7 @@ function PlanCard({
       onClick={onOpen}
       className="group flex w-full flex-col overflow-hidden rounded-[20px] bg-white text-left ring-1 ring-inset ring-ink/5 transition-shadow duration-500 hover:shadow-[0_24px_50px_-20px_rgba(18,24,32,0.25)]"
     >
-      <span className="relative block aspect-[1600/2263] w-full overflow-hidden bg-white">
+      <span className="relative block aspect-[1600/2144] w-full overflow-hidden bg-white">
         <Image
           src={slide.src}
           alt={`${slide.title} — ${slide.subtitle}`}
@@ -364,7 +364,7 @@ function Lightbox({
           src={slide.src}
           alt={`${slide.title} — ${slide.subtitle}`}
           width={1600}
-          height={2263}
+          height={2144}
           quality={90}
           className="mx-auto h-auto w-full max-w-[1100px]"
         />

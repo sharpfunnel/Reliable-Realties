@@ -89,16 +89,25 @@ public/plans/       The source plan PDF, offered as a download
 ### Floor-plan gallery
 
 [`components/sections/PlanGallery.tsx`](components/sections/PlanGallery.tsx) is a
-carousel over the ten sheets of the architect's PDF, rendered to PNG at 1600px
-wide. It uses native horizontal scrolling with CSS scroll-snap — touch,
-trackpad, buttons and dots all drive the same scroll position, and the active
-index is derived from that position rather than owned by React, so the controls
-can never drift out of sync. Selecting a sheet opens it full-screen at source
-resolution, which these drawings need to be legible.
+carousel over eight floor-plan sheets, rendered to PNG at 1600px wide. It uses
+native horizontal scrolling with CSS scroll-snap — touch, trackpad, buttons and
+dots all drive the same scroll position, and the active index is derived from
+that position rather than owned by React, so the controls can never drift out of
+sync. Selecting a sheet opens it full-screen at source resolution, which these
+drawings need to be legible.
 
-To regenerate after a drawing revision: drop the new PDF in `public/plans/` and
-re-run the render script (see git history for `renderpdf.js`, which uses
-`pdfjs-dist` + `@napi-rs/canvas`).
+**Sheet preparation.** The source drawings carry an architect's title block
+across the foot of every page. It is cropped out at y=2118 (just below the
+"tentative plans" note, above the separator rule) and the sheet frame is
+re-closed, giving uniform 1600×2144 pages. The schematic section and area
+statement sheets are excluded at the client's request. The downloadable PDF in
+`public/plans/` is rebuilt from these cropped pages so it matches the site
+rather than reinstating the removed material.
+
+To regenerate after a drawing revision: render the new PDF to PNGs
+(`pdfjs-dist` + `@napi-rs/canvas`), re-apply the crop, then rebuild the download
+with `pdf-lib`. If the title block moves, re-measure the cut line before
+cropping — the value is page-specific, not a fixed percentage.
 
 ### Content
 

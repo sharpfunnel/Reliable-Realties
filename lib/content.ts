@@ -41,7 +41,6 @@ export const site = {
   totalSaleArea: "2,27,978 sq ft",
   floors: 20,
   lifts: 5,
-  architect: "Soyuz Talib Architects",
 
   /** Footer credit — the agency delivering this site. */
   credit: "Zoot",
@@ -364,8 +363,8 @@ export const unitPlans = {
 
 export const planGallery = {
   eyebrow: "Architectural Drawings",
-  title: "Floor Plans & Area Statement",
-  body: "Every level of the tower, drawn by Soyuz Talib Architects. Select any sheet to open it full size.",
+  title: "Floor Plans, Level by Level",
+  body: "Every level of the tower, from the ground-floor showroom to the twentieth. Select any sheet to open it full size.",
   pdfHref: "/plans/reliable-realties-codename-magnitude-plans.pdf",
   pdfLabel: "Download all plans (PDF)",
   disclaimer:
@@ -410,16 +409,6 @@ export const planGallery = {
       src: "/images/plans/plan-08.png",
       title: "20th Floor Plan",
       subtitle: "Restaurant, office & natural terrace",
-    },
-    {
-      src: "/images/plans/plan-09.png",
-      title: "Schematic Section",
-      subtitle: "Ground to terrace — twenty floors",
-    },
-    {
-      src: "/images/plans/plan-10.png",
-      title: "Area Statement",
-      subtitle: "2,27,978 sq ft total sale area",
     },
   ],
 } as const;
