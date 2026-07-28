@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useState } from "react";
 
@@ -22,7 +23,7 @@ export function UnitPlans() {
     unitPlans.units.find((unit) => unit.id === activeId) ?? unitPlans.units[0];
 
   return (
-    <Section id="unit-plans">
+    <Section id="unit-plans" containerClassName="flex flex-col gap-10">
       <div className="grid gap-10 lg:grid-cols-[428px_minmax(0,1fr)]">
         {/* Selector */}
         <div className="flex flex-col gap-8">
@@ -55,12 +56,10 @@ export function UnitPlans() {
                     selected ? "bg-ink text-white" : "text-ink hover:bg-white/60",
                   )}
                 >
-                  <span className="body-base">{unit.name}</span>
-                  <span aria-hidden className="text-xs opacity-70">
-                    •
+                  <span className="body-base shrink-0">{unit.type}</span>
+                  <span className="body-base ml-auto shrink-0 tabular-nums">
+                    {unit.area}
                   </span>
-                  <span className="body-base">{unit.type}</span>
-                  <span className="body-base ml-auto">{unit.price}</span>
                   <ArrowRight
                     aria-hidden
                     className="size-4 shrink-0 transition-transform duration-300 group-hover:translate-x-1"
@@ -112,22 +111,55 @@ export function UnitPlans() {
 
               <p className="body-base text-ink">{unitPlans.metricLabel}</p>
               <p className="font-display text-[32px] font-normal leading-[1.15] tracking-[-0.016em] text-ink">
-                {active.price}
+                {active.area}
               </p>
             </div>
 
-            <div className="relative min-h-[240px] md:min-h-[362px]">
-              <Image
-                src={active.image}
-                alt={active.alt}
-                fill
-                sizes="(max-width: 768px) 100vw, 442px"
-                className="object-contain"
-              />
+            <div className="flex flex-col gap-3">
+              <div className="relative min-h-[300px] flex-1 overflow-hidden rounded-xl bg-white md:min-h-[440px]">
+                <Image
+                  src={active.image}
+                  alt={active.alt}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 442px"
+                  className="object-contain p-2"
+                />
+              </div>
+              <Link
+                href="#floor-plans"
+                className="group inline-flex items-center gap-1.5 self-start text-[13px] text-gold underline-offset-4 transition-colors hover:underline"
+              >
+                {unitPlans.planLinkLabel}
+                <ArrowRight
+                  aria-hidden
+                  className="size-3.5 transition-transform duration-300 group-hover:translate-x-1"
+                  strokeWidth={2}
+                />
+              </Link>
             </div>
           </div>
         </Reveal>
       </div>
+
+      {/* Vertical mix of the tower, read off the schematic section drawing */}
+      <Reveal y={26}>
+        <ul className="grid gap-x-5 gap-y-6 rounded-[20px] bg-white px-5 py-[30px] sm:grid-cols-2 lg:grid-cols-5">
+          {unitPlans.stack.map((level, index) => (
+            <li
+              key={level.floors}
+              className={
+                "flex flex-col items-center gap-1.5 px-2 text-center " +
+                (index === 0 ? "" : "lg:border-l lg:border-ink/10")
+              }
+            >
+              <span className="text-[11px] uppercase tracking-[0.14em] text-gold">
+                Floor {level.floors}
+              </span>
+              <span className="body-base text-ink">{level.use}</span>
+            </li>
+          ))}
+        </ul>
+      </Reveal>
     </Section>
   );
 }

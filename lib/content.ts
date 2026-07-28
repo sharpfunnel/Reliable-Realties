@@ -3,7 +3,9 @@
  * Sections read from here so content edits never require touching markup.
  *
  * Project: Reliable Realties — Codename Magnitude
- * Pure commercial offices & showrooms, Nerul MIDC, Navi Mumbai.
+ * IT & corporate offices, showrooms and retail — Plot D-123, Nerul MIDC,
+ * Navi Mumbai. Unit areas, dimensions and the floor stack below are taken
+ * from the architect's drawings (Soyuz Talib Architects, 18-03-2026).
  */
 
 export const site = {
@@ -13,7 +15,7 @@ export const site = {
   tagline: "Built for Business",
   project: "Codename Magnitude",
   description:
-    "Reliable Realties presents Codename Magnitude — pure commercial offices and showrooms in Nerul MIDC, Navi Mumbai, built for businesses that plan ahead.",
+    "Reliable Realties presents Codename Magnitude — IT and corporate offices, showrooms and retail at Plot D-123, Nerul MIDC, Navi Mumbai. Units from ₹55.50 Lakh.",
   url: "https://reliablerealties.com",
 
   contactPerson: "Aanchal Jaidhara",
@@ -28,8 +30,18 @@ export const site = {
   addressShort: "D-123, MIDC Industrial Area, Nerul MIDC, Navi Mumbai 400706",
   city: "Navi Mumbai",
 
-  priceRange: "₹60 Lakhs – ₹1.5 Crore",
+  /** Headline price. Change here and it updates hero, FAQ, schema and footer. */
+  startingPrice: "₹55.50 Lakh",
+  startingPriceShort: "₹55.50 L",
+  startingPriceValue: 5550000,
+  priceRange: "₹55.50 Lakh onwards",
   possession: "December 2029",
+
+  /** From the architect's area statement. */
+  totalSaleArea: "2,27,978 sq ft",
+  floors: 20,
+  lifts: 5,
+  architect: "Soyuz Talib Architects",
 
   /** Footer credit — the agency delivering this site. */
   credit: "Zoot",
@@ -38,6 +50,8 @@ export const site = {
 export const navLinks = [
   { label: "About", href: "#about" },
   { label: "Amenities", href: "#amenities" },
+  { label: "Unit Plans", href: "#unit-plans" },
+  { label: "Floor Plans", href: "#floor-plans" },
   { label: "Testimonials", href: "#testimonials" },
   { label: "Faq's", href: "#faq" },
   { label: "Contact", href: "#contact" },
@@ -51,12 +65,12 @@ export const primaryCta = { label: "Book a Site Visit", href: "#contact" } as co
 /* -------------------------------------------------------------------------- */
 
 export const hero = {
-  eyebrow: "Pure Commercial · Nerul MIDC",
+  eyebrow: "IT & Corporate Offices · Nerul MIDC",
   // Kept to two display lines at 1440px so the stat cards stay above the fold.
   title: "Commercial Spaces Built for Growth",
   // Hard break keeps the lead to two lines from `sm` upward.
   subtitle:
-    "Offices and showrooms in Nerul MIDC, Navi Mumbai.\nCodename Magnitude by Reliable Realties.",
+    "IT & corporate offices and showrooms in Nerul MIDC, Navi Mumbai.\nCodename Magnitude by Reliable Realties.",
   primaryCta: { label: "Contact us", href: "#contact" },
   secondaryCta: { label: "Book a Site Visit", href: "#contact" },
   proof: {
@@ -73,15 +87,15 @@ export const hero = {
   stats: [
     {
       icon: "wallet",
-      value: "₹60 L",
+      value: "₹55.50 L",
       label: "Starting Price",
-      note: "Up to ₹1.5 Cr",
+      note: "Offices, showrooms & retail",
     },
     {
-      icon: "store",
-      value: "Office",
-      label: "& Showroom Units",
-      note: "Pure Commercial",
+      icon: "briefcase",
+      value: "IT",
+      label: "& Corporate Offices",
+      note: "1,032 – 2,360 sq ft units",
     },
     {
       icon: "pin",
@@ -100,7 +114,7 @@ export const about = {
   eyebrow: "About Codename Magnitude",
   title: "A Commercial Address Built to Last",
   // Hard line breaks mirror the reference's three-line balance.
-  body: "Pure commercial offices and showrooms in the heart of Nerul MIDC.\nEfficient floor plates, strong frontage, and infrastructure planned\naround the way modern businesses actually work.",
+  body: "A 20-storey commercial tower in the heart of Nerul MIDC — IT and corporate\noffices above double-height showrooms, served by five lifts, an automated\nparking tower and a rooftop restaurant.",
   cta: { label: "View Unit Plans", href: "#unit-plans" },
   thumbnails: [
     {
@@ -118,7 +132,7 @@ export const about = {
   },
   highlights: [
     { icon: "calendarCheck", value: "2029", label: "Possession" },
-    { icon: "store", label: "Office &\nShowroom" },
+    { icon: "briefcase", label: "IT & Corporate\nOffices" },
     { icon: "pin", label: "MIDC\nNerul Address" },
   ],
 } as const;
@@ -132,7 +146,7 @@ export const whyChoose = {
   title: "Why Choose Codename Magnitude?",
   card: {
     title: "Built with intention. Positioned for growth.",
-    body: "Every unit is planned around visibility, access, and the working day-so your business runs the way it should.",
+    body: "2,27,978 sq ft of pure commercial space, planned floor by floor around the way modern businesses actually work.",
   },
   images: {
     tall: {
@@ -151,18 +165,18 @@ export const whyChoose = {
   pillars: [
     {
       number: "01",
-      title: "Strategic Location",
-      body: "Inside the established Nerul MIDC belt, minutes from Palm Beach Road, Seawoods and the Thane-Belapur corridor.",
+      title: "Built for IT & Corporate Teams",
+      body: "Efficient floor plates from 1,032 sq ft, five lifts, a 20'6\" lift lobby and an automated parking tower on every level.",
     },
     {
       number: "02",
       title: "Flexible Unit Sizes",
-      body: "Offices and showrooms across a range of layouts, so you take exactly the space your business needs today.",
+      body: "Compact suites through full corner floors — take 1,032 sq ft today and expand into 2,360 sq ft on the same floor later.",
     },
     {
       number: "03",
-      title: "Quality Construction",
-      body: "Considered specifications and finishes selected for durability, low maintenance and a long working life.",
+      title: "Showrooms & Retail Frontage",
+      body: "Double-height showrooms on the ground and first floors, with a 22'2\" clear entrance level facing the main road.",
     },
     {
       number: "04",
@@ -179,49 +193,50 @@ export const whyChoose = {
 export const amenities = {
   eyebrow: "Amenities",
   title: "Amenities Built Around the Working Day",
-  body: "Thoughtfully planned facilities that keep your teams, your clients and your operations moving-every single day.",
+  // Every entry below corresponds to a space in the architect's drawings.
+  body: "Shared facilities planned into the building itself — an arrival lobby, a recreational floor and a rooftop restaurant, all drawn into the approved plans.",
   items: [
     {
       icon: "concierge",
-      title: "Reception & Concierge",
-      body: "A staffed front desk that greets every visitor.",
+      title: "Grand Entrance Lobby",
+      body: "28'6\" × 31'2\" arrival lobby on the ground floor.",
       image: "/images/amenity-concierge.png",
-      alt: "Reception desk with a concierge assisting a visitor",
+      alt: "Reception desk in a double-height commercial entrance lobby",
     },
     {
-      icon: "sofa",
-      title: "Business Lounge",
-      body: "Meet, wait and work between appointments.",
+      icon: "utensils",
+      title: "Rooftop Restaurant",
+      body: "7,952 sq ft restaurant on the 20th floor.",
       image: "/images/amenity-lounge.png",
-      alt: "Business lounge with soft lighting and deep seating",
-    },
-    {
-      icon: "trees",
-      title: "Landscaped Forecourt",
-      body: "Green, open arrival space for the whole campus.",
-      image: "/images/amenity-courtyard.png",
-      alt: "Landscaped forecourt between commercial buildings",
-    },
-    {
-      icon: "coffee",
-      title: "Café & Dining Court",
-      body: "On-site food and coffee, all working day.",
-      image: "/images/why-thumb-1.png",
-      alt: "Outdoor dining court with seating",
+      alt: "Restaurant interior with warm lighting and city views",
     },
     {
       icon: "sunset",
-      title: "Open Terrace Deck",
-      body: "Breakout space for informal meetings.",
+      title: "Natural Sky Terrace",
+      body: "1,948 sq ft open-air deck alongside the restaurant.",
       image: "/images/amenity-terrace.png",
-      alt: "Open terrace deck overlooking the city at sunset",
+      alt: "Open-air rooftop terrace overlooking the city at sunset",
     },
     {
       icon: "dumbbell",
-      title: "Wellness & Break Room",
-      body: "Space to reset in the middle of the day.",
+      title: "Fitness Centre",
+      body: "1,680 sq ft gym on the 15th recreational floor.",
       image: "/images/amenity-wellness.png",
-      alt: "Wellness room opening onto a planted courtyard",
+      alt: "Fitness studio with floor-to-ceiling glazing",
+    },
+    {
+      icon: "coffee",
+      title: "Café & Kitchen",
+      body: "1,680 sq ft catering kitchen serving the 15th floor.",
+      image: "/images/why-thumb-1.png",
+      alt: "Café seating area with outdoor tables",
+    },
+    {
+      icon: "car",
+      title: "Parking & Driveways",
+      body: "Automated parking tower with 7.5m–10.3m driveways.",
+      image: "/images/amenity-courtyard.png",
+      alt: "Landscaped driveway running alongside a commercial building",
     },
   ],
 } as const;
@@ -230,57 +245,181 @@ export const amenities = {
 /*                                 Unit plans                                 */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Unit mix taken directly from the architect's area statement.
+ * CA = carpet area, SA = sale area (carpet area × 2.0 loading).
+ */
 export const unitPlans = {
   eyebrow: "Unit Plans",
   title: "Efficient Layouts, Flexible Footprints",
-  body: "Explore office and showroom configurations designed for visibility, circulation and everyday efficiency.",
+  body: "IT and corporate offices, showrooms and retail across twenty floors. Every area below is taken from the approved architectural drawings.",
   /** Label above the headline figure in the detail panel. */
-  metricLabel: "Starting Price",
+  metricLabel: "Sale Area",
+  planLinkLabel: "View full floor plan",
   units: [
     {
-      id: "unit-a",
-      name: "Unit A",
-      type: "Showroom",
-      price: "₹60 L onwards",
-      heading: "Ground Floor Showroom",
-      image: "/images/unit-plan.png",
-      alt: "Layout plan for the ground floor showroom unit",
+      id: "office-compact",
+      name: "Office 2–7",
+      type: "Compact Office",
+      area: "1,032 sq ft",
+      heading: "Compact IT & Corporate Office",
+      image: "/images/plans/plan-03.png",
+      alt: "Typical office floor plan showing compact office units 2 to 7",
       features: [
-        { icon: "store", label: "Street-Facing Frontage" },
-        { icon: "maximize", label: "Double-Height Display" },
-        { icon: "layers", label: "Mezzanine Ready" },
-        { icon: "car", label: "Reserved Parking" },
+        { icon: "maximize", label: "Carpet Area — 516 sq ft" },
+        { icon: "ruler", label: "29'7\" × 15'4\"" },
+        { icon: "bath", label: "Attached W.C." },
+        { icon: "building", label: "Floors 2–14" },
       ],
     },
     {
-      id: "unit-b",
-      name: "Unit B",
-      type: "Office Suite",
-      price: "₹85 L onwards",
-      heading: "Mid-Floor Office Suite",
-      image: "/images/unit-plan.png",
-      alt: "Layout plan for the mid-floor office suite",
-      features: [
-        { icon: "briefcase", label: "Open Workspace" },
-        { icon: "layers", label: "Private Cabin" },
-        { icon: "coffee", label: "Pantry & Washroom" },
-        { icon: "car", label: "Reserved Parking" },
-      ],
-    },
-    {
-      id: "unit-c",
-      name: "Unit C",
+      id: "office-corner",
+      name: "Office 1 & 8",
       type: "Corner Office",
-      price: "₹1.5 Cr",
-      heading: "Corner Office Floor",
-      image: "/images/unit-plan.png",
-      alt: "Layout plan for the corner office floor",
+      area: "2,360 sq ft",
+      heading: "Corner IT & Corporate Office",
+      image: "/images/plans/plan-03.png",
+      alt: "Typical office floor plan showing corner office units 1 and 8",
       features: [
-        { icon: "briefcase", label: "Full-Floor Layout" },
-        { icon: "layers", label: "Two Private Cabins" },
-        { icon: "maximize", label: "Conference Room" },
-        { icon: "car", label: "2 Reserved Bays" },
+        { icon: "maximize", label: "Carpet Area — 1,180 sq ft" },
+        { icon: "ruler", label: "29'7\" × 29'6\"" },
+        { icon: "bath", label: "Attached W.C." },
+        { icon: "building", label: "Floors 2–14" },
       ],
+    },
+    {
+      id: "office-premium",
+      name: "Office 2–4",
+      type: "Premium Office",
+      area: "1,684 sq ft",
+      heading: "Premium High-Floor Office",
+      image: "/images/plans/plan-06.png",
+      alt: "High-floor plan showing premium office units 2 to 4",
+      features: [
+        { icon: "maximize", label: "Carpet Area — 842 sq ft" },
+        { icon: "ruler", label: "23'1\" × 31'2\"" },
+        { icon: "bath", label: "Attached W.C." },
+        { icon: "building", label: "Floors 16–19" },
+      ],
+    },
+    {
+      id: "office-signature",
+      name: "Office 1 & 5",
+      type: "Signature Office",
+      area: "1,974 sq ft",
+      heading: "Signature Corner Office",
+      image: "/images/plans/plan-06.png",
+      alt: "High-floor plan showing signature corner office units 1 and 5",
+      features: [
+        { icon: "maximize", label: "Carpet Area — 987 sq ft" },
+        { icon: "ruler", label: "23'1\" × 29'6\"" },
+        { icon: "bath", label: "Attached W.C." },
+        { icon: "building", label: "Floors 16–19" },
+      ],
+    },
+    {
+      id: "showroom-ground",
+      name: "Showroom 1",
+      type: "Ground Showroom",
+      area: "3,750 sq ft",
+      heading: "Ground Floor Showroom",
+      image: "/images/plans/plan-01.png",
+      alt: "Ground floor plan showing the showroom, entrance lobby and parking",
+      features: [
+        { icon: "maximize", label: "Carpet Area — 1,875 sq ft" },
+        { icon: "layers", label: "22'2\" Floor Height" },
+        { icon: "store", label: "Main Road Frontage" },
+        { icon: "car", label: "Parking Tower Access" },
+      ],
+    },
+    {
+      id: "showroom-first",
+      name: "Showroom 1",
+      type: "First Floor Showroom",
+      area: "13,122 sq ft",
+      heading: "Full-Floor First Level Showroom",
+      image: "/images/plans/plan-02.png",
+      alt: "First floor plan showing the full-floor showroom",
+      features: [
+        { icon: "maximize", label: "Carpet Area — 6,561 sq ft" },
+        { icon: "layers", label: "11'10\" Floor Height" },
+        { icon: "store", label: "Full-Floor Plate" },
+        { icon: "building", label: "1st Floor" },
+      ],
+    },
+  ],
+  /** Vertical mix, read off the schematic section. */
+  stack: [
+    { floors: "G – 1", use: "Showrooms & Retail" },
+    { floors: "2 – 14", use: "IT & Corporate Offices" },
+    { floors: "15", use: "Gym & Kitchen" },
+    { floors: "16 – 19", use: "Premium Offices" },
+    { floors: "20", use: "Restaurant & Terrace" },
+  ],
+} as const;
+
+/* -------------------------------------------------------------------------- */
+/*                      Floor plans — architect's drawings                    */
+/* -------------------------------------------------------------------------- */
+
+export const planGallery = {
+  eyebrow: "Architectural Drawings",
+  title: "Floor Plans & Area Statement",
+  body: "Every level of the tower, drawn by Soyuz Talib Architects. Select any sheet to open it full size.",
+  pdfHref: "/plans/reliable-realties-codename-magnitude-plans.pdf",
+  pdfLabel: "Download all plans (PDF)",
+  disclaimer:
+    "All plans shown are tentative and subject to change as per planning, structural feasibility and statutory approvals.",
+  slides: [
+    {
+      src: "/images/plans/plan-01.png",
+      title: "Ground Floor Plan",
+      subtitle: "Showroom, entrance lobby & parking tower",
+    },
+    {
+      src: "/images/plans/plan-02.png",
+      title: "1st Floor Plan",
+      subtitle: "Full-floor showroom — 13,122 sq ft",
+    },
+    {
+      src: "/images/plans/plan-03.png",
+      title: "Typical Office Floor",
+      subtitle: "Floors 2–6, 8–11, 13 & 14 — nine offices",
+    },
+    {
+      src: "/images/plans/plan-04.png",
+      title: "7th & 12th Floor Plan",
+      subtitle: "Eight offices with refuge area",
+    },
+    {
+      src: "/images/plans/plan-05.png",
+      title: "15th Floor Plan",
+      subtitle: "Recreational level — gym & kitchen",
+    },
+    {
+      src: "/images/plans/plan-06.png",
+      title: "16th, 18th & 19th Floor",
+      subtitle: "Six premium offices per floor",
+    },
+    {
+      src: "/images/plans/plan-07.png",
+      title: "17th Floor Plan",
+      subtitle: "Five premium offices with refuge area",
+    },
+    {
+      src: "/images/plans/plan-08.png",
+      title: "20th Floor Plan",
+      subtitle: "Restaurant, office & natural terrace",
+    },
+    {
+      src: "/images/plans/plan-09.png",
+      title: "Schematic Section",
+      subtitle: "Ground to terrace — twenty floors",
+    },
+    {
+      src: "/images/plans/plan-10.png",
+      title: "Area Statement",
+      subtitle: "2,27,978 sq ft total sale area",
     },
   ],
 } as const;
@@ -396,12 +535,12 @@ export const faq = {
     {
       question: "What types of units are available?",
       answer:
-        "Codename Magnitude is a pure commercial project offering ground-floor showrooms and office suites across a range of layouts. Units are designed for strong frontage, efficient circulation and flexible fit-outs.",
+        "Codename Magnitude is a pure commercial project across twenty floors: double-height showrooms on the ground and first floors, IT and corporate offices from the 2nd to the 14th floor, a recreational level on the 15th, premium offices on the 16th to 19th, and a restaurant with a sky terrace on the 20th. Office units range from 1,032 sq ft to 2,360 sq ft sale area.",
     },
     {
       question: "What is the price range?",
       answer:
-        "Units are priced between ₹60 Lakhs and ₹1.5 Crore depending on the floor, unit type, frontage and carpet area. Our team will share the current price sheet and applicable charges on enquiry.",
+        "Units start from ₹55.50 Lakh. The final figure depends on the floor, unit type, frontage and carpet area — our team will share the current price sheet and applicable charges on enquiry.",
     },
     {
       question: "Is the project RERA registered?",
@@ -417,6 +556,11 @@ export const faq = {
       question: "What is the possession timeline?",
       answer:
         "Possession is scheduled for December 2029. Our team will share the current construction status and the detailed handover schedule during your site visit.",
+    },
+    {
+      question: "Is the project suitable for an IT or corporate office?",
+      answer:
+        "Yes. Floors 2 to 19 are planned as IT and corporate office space, with efficient floor plates from 1,032 sq ft, five lifts serving a 20'6\" × 9'0\" lift lobby, an attached W.C. in every unit and an automated parking tower on each level.",
     },
     {
       question: "Can I customise the interiors of my unit?",
@@ -444,7 +588,7 @@ export const contact = {
   eyebrow: "Get in Touch",
   title: "Let's Find the Right Space for Your Business.",
   // Hard line breaks mirror the reference's three-line balance.
-  body: "Have questions or want to see the units in person?\nOur team is just a call or WhatsApp away.\nWe'd love to hear from you!",
+  body: "Units start from ₹55.50 Lakh — ask us for the current price sheet.\nOur team is just a call or WhatsApp away.\nWe'd love to hear from you!",
   image: {
     src: "/images/about-main.png",
     alt: "Codename Magnitude commercial building at golden hour",
@@ -480,10 +624,10 @@ export const contact = {
     subtitle: "Fill in your details and we'll get back to you shortly.",
     budgetLabel: "Budget",
     budgets: [
-      "₹60 L – ₹80 L",
-      "₹80 L – ₹1 Cr",
-      "₹1 Cr – ₹1.25 Cr",
-      "₹1.25 Cr – ₹1.5 Cr",
+      "₹55.50 L – ₹75 L",
+      "₹75 L – ₹1 Cr",
+      "₹1 Cr – ₹1.5 Cr",
+      "₹1.5 Cr and above",
     ],
     consent: `I agree to be contacted by ${site.name} about this enquiry.`,
     submit: "Submit",

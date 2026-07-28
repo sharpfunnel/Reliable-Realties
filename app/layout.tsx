@@ -31,15 +31,17 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: `${site.name} — Commercial Offices & Showrooms in Nerul MIDC, Navi Mumbai`,
+    default: `${site.name} — IT & Corporate Offices, Showrooms in Nerul MIDC, Navi Mumbai`,
     template: `%s | ${site.name}`,
   },
   description: site.description,
   keywords: [
+    "IT office space Navi Mumbai",
+    "corporate office Nerul MIDC",
     "commercial property Navi Mumbai",
-    "office space Nerul MIDC",
     "showroom for sale Navi Mumbai",
     "commercial shops Nerul",
+    "office space for sale Nerul",
     "Codename Magnitude",
     "Reliable Realties",
     "commercial real estate investment Navi Mumbai",

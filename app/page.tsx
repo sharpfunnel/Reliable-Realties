@@ -6,10 +6,11 @@ import { Contact } from "@/components/sections/Contact";
 import { Faq } from "@/components/sections/Faq";
 import { Hero } from "@/components/sections/Hero";
 import { Location } from "@/components/sections/Location";
+import { PlanGallery } from "@/components/sections/PlanGallery";
 import { Testimonials } from "@/components/sections/Testimonials";
 import { UnitPlans } from "@/components/sections/UnitPlans";
 import { WhyChoose } from "@/components/sections/WhyChoose";
-import { faq, site } from "@/lib/content";
+import { faq, site, unitPlans } from "@/lib/content";
 
 /**
  * Structured data — helps search engines surface the development as a
@@ -43,15 +44,15 @@ const jsonLd = [
     "@type": "Product",
     name: `${site.name} — ${site.project}`,
     description:
-      "Pure commercial office and showroom units in Nerul MIDC, Navi Mumbai.",
+      "IT and corporate offices, showrooms and retail units at Plot D-123, Nerul MIDC, Navi Mumbai. Office units from 1,032 sq ft to 2,360 sq ft sale area.",
     image: `${site.url}/images/hero-building.png`,
     brand: { "@type": "Brand", name: site.name },
     offers: {
       "@type": "AggregateOffer",
       priceCurrency: "INR",
-      lowPrice: 6000000,
-      highPrice: 15000000,
+      lowPrice: site.startingPriceValue,
       availability: "https://schema.org/PreOrder",
+      offerCount: unitPlans.units.length,
     },
   },
   {
@@ -82,6 +83,7 @@ export default function HomePage() {
         <WhyChoose />
         <Amenities />
         <UnitPlans />
+        <PlanGallery />
         <Testimonials />
         <Location />
         <Faq />
