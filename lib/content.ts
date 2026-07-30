@@ -22,7 +22,7 @@ export const site = {
   phone: "+91 98191 81914",
   phoneHref: "tel:+919819181914",
   whatsappHref: "https://wa.me/919819181914",
-  email: "reliablerealties@gmail.com",
+  email: "connect@reliablerealties.com",
 
   addressLine1: "D-123, MIDC Industrial Area, near SIES Pharmaceutical College",
   addressLine2: "Nerul MIDC, Navi Mumbai 400706",

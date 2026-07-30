@@ -18,7 +18,7 @@ the client brief.
 | Possession | December 2029                                                   |
 | Scale      | 20 floors · 2,27,978 sq ft total sale area · 5 lifts            |
 | Architect  | Soyuz Talib Architects (drawings dated 18-03-2026)              |
-| Contact    | Aanchal Jaidhara · +91 98191 81914 (call & WhatsApp) · reliablerealties@gmail.com |
+| Contact    | Aanchal Jaidhara · +91 98191 81914 (call & WhatsApp) · connect@reliablerealties.com |
 
 ### Floor stack (from the schematic section)
 
