@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Inter, Playfair_Display } from "next/font/google";
 
 import { site } from "@/lib/content";
+import { Tracker } from "@/components/track/Tracker";
 import "./globals.css";
 
 /* Display serif — hero and section headings */
@@ -95,6 +96,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-cream text-ink">
         {children}
+        <Tracker />
       </body>
     </html>
   );

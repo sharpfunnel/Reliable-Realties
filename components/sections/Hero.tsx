@@ -66,13 +66,14 @@ export function Hero() {
             </Reveal>
 
             <Reveal delay={260} className="flex flex-col gap-3 pt-2 sm:flex-row">
-              <ButtonLink href={hero.primaryCta.href} variant="dark">
+              <ButtonLink href={hero.primaryCta.href} variant="dark" data-cta-id="hero-primary">
                 {hero.primaryCta.label}
               </ButtonLink>
               <ButtonLink
                 href={hero.secondaryCta.href}
                 variant="outline"
                 icon="right"
+                data-cta-id="hero-secondary"
               >
                 {hero.secondaryCta.label}
               </ButtonLink>

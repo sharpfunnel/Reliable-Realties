@@ -9,30 +9,56 @@ import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Reveal } from "@/components/ui/Reveal";
 import { Section, SectionHeader } from "@/components/ui/Section";
+import { getDeviceInfo, getSessionInit } from "@/lib/track/client/device";
+import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
-/**
- * Contact section: contact details on the left, a frosted enquiry form
- * floating over a photograph on the right.
- *
- * The submit handler is intentionally transport-agnostic — swap the
- * `simulateSend` call for a server action or API route when a backend exists.
- */
 export function Contact() {
   const [status, setStatus] = useState<Status>("idle");
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     setStatus("submitting");
+    setError(null);
+
+    const data = new FormData(form);
+    if (!data.get("consent")) {
+      setError("Please fill in all required fields.");
+      setStatus("error");
+      return;
+    }
 
     try {
-      // Placeholder for the real submission endpoint.
-      await new Promise((resolve) => setTimeout(resolve, 700));
+      const [clientId] = getSessionId();
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          formId: "contact-enquiry",
+          name: data.get("name"),
+          phone: data.get("phone"),
+          email: data.get("email"),
+          budget: data.get("budget"),
+          message: data.get("message"),
+          fingerprint: getVisitorId(),
+          clientId,
+          device: getDeviceInfo(),
+          sessionInit: getSessionInit(),
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.error ?? "Submission failed");
+      }
+
       form.reset();
       setStatus("success");
     } catch {
+      setError("Something went wrong. Please try again.");
       setStatus("error");
     }
   }
@@ -109,6 +135,7 @@ export function Contact() {
 
           <form
             onSubmit={handleSubmit}
+            data-form-id="contact-enquiry"
             noValidate={false}
             className={cn(
               "rounded-[20px] bg-white/85 p-6 backdrop-blur-[10px] sm:p-[30px]",
@@ -213,7 +240,7 @@ export function Contact() {
               {status === "success"
                 ? "Thank you — our team will be in touch shortly."
                 : status === "error"
-                  ? "Something went wrong. Please try again."
+                  ? error ?? "Something went wrong. Please try again."
                   : ""}
             </p>
           </form>

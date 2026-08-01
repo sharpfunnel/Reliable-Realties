@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
     // than the 75 default.
     qualities: [75, 85, 90],
   },
+  // pdfkit reads its .afm font files from disk relative to its own module
+  // directory — without this, bundling breaks that lookup at runtime.
+  serverExternalPackages: ["pdfkit"],
 };
 
 export default nextConfig;

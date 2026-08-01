@@ -45,6 +45,7 @@ type ButtonLinkProps = {
   variant?: Variant;
   icon?: IconKind;
   className?: string;
+  "data-cta-id"?: string;
 };
 
 /** Anchor-styled CTA — used for every navigational button on the page. */
@@ -54,9 +55,10 @@ export function ButtonLink({
   variant = "dark",
   icon = "up-right",
   className,
+  ...props
 }: ButtonLinkProps) {
   return (
-    <Link href={href} className={cn(BASE, VARIANTS[variant], className)}>
+    <Link href={href} className={cn(BASE, VARIANTS[variant], className)} {...props}>
       {children}
       <Icon kind={icon} />
     </Link>

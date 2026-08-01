@@ -1,0 +1,341 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Visitor {
+  id             String   @id @default(cuid())
+  fingerprint    String   @unique
+  firstSeenAt    DateTime @default(now())
+  lastSeenAt     DateTime @updatedAt
+  isReturning    Boolean  @default(false)
+  country        String?
+  region         String?
+  city           String?
+  timezone       String?
+  language       String?
+  browser        String?
+  browserVersion String?
+  os             String?
+  deviceType     String?
+  screenWidth    Int?
+  screenHeight   Int?
+  sessions       Session[]
+  leads          Lead[]
+
+  @@index([firstSeenAt])
+}
+
+model Session {
+  id             String    @id @default(cuid())
+  clientId       String    @unique
+  visitorId      String
+  visitor        Visitor   @relation(fields: [visitorId], references: [id])
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  totalDuration  Int?
+  isBounce       Boolean   @default(true)
+  pagesViewed    Int       @default(0)
+  entryPath      String?
+  exitPath       String?
+  referrer       String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  utmContent     String?
+  utmTerm        String?
+  gclid          String?
+  fbclid         String?
+  msclkid        String?
+  ipAddress      String?
+  viewportWidth  Int?
+  viewportHeight Int?
+
+  pageViews     PageView[]
+  events        Event[]
+  scrollEvents  ScrollEvent[]
+  ctaEvents     CtaEvent[]
+  formEvents    FormEvent[]
+  perfMetrics   PerformanceMetric[]
+  errors        ErrorEvent[]
+  leads         Lead[]
+  mouseEvents   MouseEvent[]
+  heatmapEvents HeatmapEvent[]
+  replays       SessionReplay[]
+
+  @@index([visitorId])
+  @@index([startedAt])
+  @@index([utmSource, utmMedium, utmCampaign])
+}
+
+model PageView {
+  id         String    @id @default(cuid())
+  sessionId  String
+  session    Session   @relation(fields: [sessionId], references: [id])
+  path       String
+  title      String?
+  enteredAt  DateTime  @default(now())
+  exitedAt   DateTime?
+  timeOnPage Int?
+
+  @@index([sessionId])
+  @@index([path])
+}
+
+model Event {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  name      String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([name])
+}
+
+model ScrollEvent {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     Session  @relation(fields: [sessionId], references: [id])
+  path        String
+  depth       Int
+  timeToReach Int?
+  createdAt   DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([path, depth])
+}
+
+model CtaEvent {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         Session  @relation(fields: [sessionId], references: [id])
+  ctaId           String
+  action          String // viewed | hovered | clicked
+  timeBeforeClick Int?
+  createdAt       DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([ctaId, action])
+}
+
+model FormEvent {
+  id           String   @id @default(cuid())
+  sessionId    String
+  session      Session  @relation(fields: [sessionId], references: [id])
+  formId       String
+  action       String // viewed | started | field_focus | field_complete | validation_error | abandoned | submitted
+  fieldName    String?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([formId, action])
+}
+
+model PerformanceMetric {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  path      String
+  metric    String // LCP | INP | CLS | FCP | TTFB
+  value     Float
+  rating    String // good | needs-improvement | poor
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([path, metric])
+}
+
+model ErrorEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id])
+  type      String // js | unhandled_rejection | image_load
+  message   String
+  stack     String?
+  path      String?
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([type, createdAt])
+}
+
+model Lead {
+  id             String    @id @default(cuid())
+  visitorId      String?
+  visitor        Visitor?  @relation(fields: [visitorId], references: [id])
+  sessionId      String?
+  session        Session?  @relation(fields: [sessionId], references: [id])
+  formId         String?
+  name           String?
+  phone          String?
+  email          String?
+  budget         String?
+  message        String?
+  source         String?
+  status         String    @default("new") // new | contacted | qualified | won | lost (app-enforced)
+  createdAt      DateTime  @default(now())
+  metaCapiSentAt DateTime?
+  metaCapiError  String?
+
+  @@index([createdAt])
+  @@index([status])
+}
+
+model MouseEvent {
+  id             String   @id @default(cuid())
+  sessionId      String
+  session        Session  @relation(fields: [sessionId], references: [id])
+  path           String
+  type           String // rage_click | dead_click | double_click
+  x              Int
+  y              Int
+  targetSelector String?
+  hoverDuration  Int?
+  createdAt      DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([path, type])
+}
+
+model HeatmapEvent {
+  id            String   @id @default(cuid())
+  sessionId     String
+  session       Session  @relation(fields: [sessionId], references: [id])
+  path          String
+  type          String // click | hover
+  xPct          Float
+  yPct          Float
+  viewportWidth Int?
+  createdAt     DateTime @default(now())
+
+  @@index([path, type])
+}
+
+model SessionReplay {
+  id         String   @id @default(cuid())
+  sessionId  String
+  session    Session  @relation(fields: [sessionId], references: [id])
+  seq        Int      @default(autoincrement())
+  data       Bytes // gzip-compressed JSON array of rrweb events
+  eventCount Int
+  createdAt  DateTime @default(now())
+
+  @@index([sessionId, seq])
+}
+
+// --- Meta Ads ---
+
+model MetaAdAccount {
+  id             String     @id @default(cuid())
+  accountId      String     @unique // Meta's "act_..." id
+  name           String?
+  currency       String?
+  timezoneName   String?
+  accessToken    String? // null = disconnected
+  tokenExpiresAt DateTime?
+  connectedAt    DateTime   @default(now())
+  lastSyncedAt   DateTime?
+  lastSyncError  String?
+  campaigns      Campaign[]
+}
+
+model Campaign {
+  id             String        @id @default(cuid())
+  adAccountId    String
+  adAccount      MetaAdAccount @relation(fields: [adAccountId], references: [id])
+  metaId         String        @unique
+  name           String
+  status         String?
+  objective      String?
+  dailyBudget    Float?
+  lifetimeBudget Float?
+  startTime      DateTime?
+  stopTime       DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  adSets         AdSet[]
+  insights       MetaInsight[]
+
+  @@index([adAccountId])
+  @@index([status])
+}
+
+model AdSet {
+  id               String        @id @default(cuid())
+  campaignId       String
+  campaign         Campaign      @relation(fields: [campaignId], references: [id])
+  metaId           String        @unique
+  name             String
+  status           String?
+  dailyBudget      Float?
+  lifetimeBudget   Float?
+  optimizationGoal String?
+  billingEvent     String?
+  targeting        Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  ads              Ad[]
+  insights         MetaInsight[]
+
+  @@index([campaignId])
+}
+
+model Ad {
+  id           String        @id @default(cuid())
+  adSetId      String
+  adSet        AdSet         @relation(fields: [adSetId], references: [id])
+  metaId       String        @unique
+  name         String
+  status       String?
+  creativeId   String?
+  headline     String?
+  bodyText     String?
+  thumbnailUrl String?
+  linkUrl      String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  insights     MetaInsight[]
+
+  @@index([adSetId])
+}
+
+model MetaInsight {
+  id               String    @id @default(cuid())
+  level            String // campaign | adset | ad
+  entityId         String
+  date             DateTime
+  campaignId       String?
+  campaign         Campaign? @relation(fields: [campaignId], references: [id])
+  adSetId          String?
+  adSet            AdSet?    @relation(fields: [adSetId], references: [id])
+  adId             String?
+  ad               Ad?       @relation(fields: [adId], references: [id])
+  spend            Float?
+  impressions      Int?
+  reach            Int?
+  clicks           Int?
+  linkClicks       Int?
+  landingPageViews Int?
+  ctr              Float?
+  cpc              Float?
+  cpm              Float?
+  frequency        Float?
+  videoViews       Int?
+  results          Int?
+  costPerResult    Float?
+  roas             Float?
+  createdAt        DateTime  @default(now())
+
+  @@unique([level, entityId, date])
+  @@index([date])
+  @@index([campaignId, date])
+  @@index([adSetId, date])
+  @@index([adId, date])
+}
