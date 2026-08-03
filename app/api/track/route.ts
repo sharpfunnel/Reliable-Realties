@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { findOrCreateSession, upsertVisitor } from "@/lib/track/ingest";
+import { findOrCreateSession, sanitizeRawParams, upsertVisitor } from "@/lib/track/ingest";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +58,11 @@ export async function POST(request: Request) {
     gclid: str(sessionInit.gclid),
     fbclid: str(sessionInit.fbclid),
     msclkid: str(sessionInit.msclkid),
+    placement: str(sessionInit.placement),
+    metaCampaignId: str(sessionInit.metaCampaignId),
+    metaAdsetId: str(sessionInit.metaAdsetId),
+    metaAdId: str(sessionInit.metaAdId),
+    rawParams: sanitizeRawParams(sessionInit.rawParams),
     viewportWidth: num(sessionInit.viewportWidth),
     viewportHeight: num(sessionInit.viewportHeight),
   });

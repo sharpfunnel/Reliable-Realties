@@ -136,6 +136,22 @@ export async function getLeads(status?: string) {
     where: status && status !== "all" ? { status } : undefined,
     orderBy: { createdAt: "desc" },
     take: 500,
+    include: {
+      session: {
+        select: {
+          utmSource: true,
+          utmMedium: true,
+          utmCampaign: true,
+          utmContent: true,
+          utmTerm: true,
+          placement: true,
+          gclid: true,
+          fbclid: true,
+          msclkid: true,
+          rawParams: true,
+        },
+      },
+    },
   });
 }
 

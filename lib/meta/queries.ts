@@ -57,21 +57,51 @@ export async function getCampaignPerformance(days = 30) {
     orderBy: { createdAt: "desc" },
   });
 
-  const onSiteByUtm = await prisma.session.groupBy({
-    by: ["utmCampaign"],
-    where: { startedAt: { gte: since }, utmCampaign: { not: null } },
+  /**
+   * On-site sessions are matched to a campaign by Meta's own campaign ID
+   * (captured as `campaign_id` on the ad URL), because campaign names get
+   * edited after launch and a rename would silently break a name-based join.
+   * Sessions with no `metaCampaignId` — captured before we started tagging —
+   * fall back to matching on the name, and the two buckets are kept separate
+   * so a session carrying both isn't counted twice.
+   */
+  const sessionsByCampaign = await prisma.session.groupBy({
+    by: ["metaCampaignId", "utmCampaign"],
+    where: {
+      startedAt: { gte: since },
+      OR: [{ metaCampaignId: { not: null } }, { utmCampaign: { not: null } }],
+    },
     _count: { _all: true },
   });
-  const onSiteMap = new Map(onSiteByUtm.map((r) => [r.utmCampaign, r._count._all]));
 
-  const leadsByUtm = await prisma.lead.findMany({
-    where: { createdAt: { gte: since }, session: { utmCampaign: { not: null } } },
-    select: { session: { select: { utmCampaign: true } } },
+  const sessionsByMetaId = new Map<string, number>();
+  const sessionsByName = new Map<string, number>();
+  for (const row of sessionsByCampaign) {
+    if (row.metaCampaignId) {
+      sessionsByMetaId.set(
+        row.metaCampaignId,
+        (sessionsByMetaId.get(row.metaCampaignId) ?? 0) + row._count._all,
+      );
+    } else if (row.utmCampaign) {
+      sessionsByName.set(row.utmCampaign, (sessionsByName.get(row.utmCampaign) ?? 0) + row._count._all);
+    }
+  }
+
+  const leadsByCampaign = await prisma.lead.findMany({
+    where: {
+      createdAt: { gte: since },
+      session: { OR: [{ metaCampaignId: { not: null } }, { utmCampaign: { not: null } }] },
+    },
+    select: { session: { select: { metaCampaignId: true, utmCampaign: true } } },
   });
-  const leadsMap = new Map<string, number>();
-  for (const lead of leadsByUtm) {
-    const key = lead.session?.utmCampaign;
-    if (key) leadsMap.set(key, (leadsMap.get(key) ?? 0) + 1);
+
+  const leadsByMetaId = new Map<string, number>();
+  const leadsByName = new Map<string, number>();
+  for (const lead of leadsByCampaign) {
+    const metaId = lead.session?.metaCampaignId;
+    const name = lead.session?.utmCampaign;
+    if (metaId) leadsByMetaId.set(metaId, (leadsByMetaId.get(metaId) ?? 0) + 1);
+    else if (name) leadsByName.set(name, (leadsByName.get(name) ?? 0) + 1);
   }
 
   return campaigns.map((campaign) => {
@@ -91,8 +121,8 @@ export async function getCampaignPerformance(days = 30) {
       clicks,
       results,
       costPerResult: results > 0 ? spend / results : 0,
-      onSiteSessions: onSiteMap.get(campaign.name) ?? 0,
-      onSiteLeads: leadsMap.get(campaign.name) ?? 0,
+      onSiteSessions: (sessionsByMetaId.get(campaign.metaId) ?? 0) + (sessionsByName.get(campaign.name) ?? 0),
+      onSiteLeads: (leadsByMetaId.get(campaign.metaId) ?? 0) + (leadsByName.get(campaign.name) ?? 0),
     };
   });
 }

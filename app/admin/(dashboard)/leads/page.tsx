@@ -5,6 +5,7 @@ import { Table, Thead, Th, Tr, Td, EmptyState } from "@/components/admin/Table";
 import { LeadStatusSelect } from "@/components/admin/LeadStatusSelect";
 import { ResendCapiButton } from "@/components/admin/ResendCapiButton";
 import { cn } from "@/lib/cn";
+import { formatRawParams } from "@/lib/admin/attribution";
 import { getLeads } from "@/lib/admin/queries";
 
 const FILTERS = ["all", "new", "contacted", "qualified", "won", "lost"];
@@ -59,7 +60,28 @@ export default async function AdminLeadsPage({
                 <Td>{lead.phone ?? "—"}</Td>
                 <Td>{lead.email ?? "—"}</Td>
                 <Td>{lead.budget ?? "—"}</Td>
-                <Td>{lead.source ?? "—"}</Td>
+                <Td>
+                  <div>{lead.source ?? "—"}</div>
+                  {lead.session?.utmSource && (
+                    <div
+                      className="mt-0.5 text-xs text-slate-400"
+                      title={formatRawParams(lead.session.rawParams)?.full}
+                    >
+                      <div>
+                        {lead.session.utmSource}/{lead.session.utmMedium ?? "—"}
+                        {lead.session.utmCampaign && ` · ${lead.session.utmCampaign}`}
+                      </div>
+                      {(lead.session.utmContent || lead.session.utmTerm) && (
+                        <div>
+                          {lead.session.utmContent && `ad: ${lead.session.utmContent}`}
+                          {lead.session.utmContent && lead.session.utmTerm && " · "}
+                          {lead.session.utmTerm && `adset: ${lead.session.utmTerm}`}
+                        </div>
+                      )}
+                      {lead.session.placement && <div>{lead.session.placement}</div>}
+                    </div>
+                  )}
+                </Td>
                 <Td>
                   <LeadStatusSelect leadId={lead.id} status={lead.status} />
                 </Td>
