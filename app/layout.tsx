@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Inter, Playfair_Display } from "next/font/google";
 
+import {
+  GoogleTagManagerNoScript,
+  GoogleTagManagerScript,
+} from "@/components/analytics/GoogleTagManager";
 import { site } from "@/lib/content";
 import { Tracker } from "@/components/track/Tracker";
 import "./globals.css";
@@ -94,7 +98,10 @@ export default function RootLayout({
       lang="en"
       className={`${cormorant.variable} ${playfair.variable} ${inter.variable} h-full antialiased`}
     >
+      <GoogleTagManagerScript />
       <body className="min-h-full flex flex-col bg-cream text-ink">
+        {/* GTM requires this to be the first element inside <body> */}
+        <GoogleTagManagerNoScript />
         {children}
         <Tracker />
       </body>

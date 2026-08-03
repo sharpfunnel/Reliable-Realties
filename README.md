@@ -158,6 +158,18 @@ beneath the map carries the same information.
 - JSON-LD for `RealEstateAgent`, `Product` (INR price range) and `FAQPage`;
   Open Graph and Twitter cards set in the root layout.
 
+### Analytics
+
+Google Tag Manager (container `GTM-MV59B2B3`) is wired up in
+[`components/analytics/GoogleTagManager.tsx`](components/analytics/GoogleTagManager.tsx)
+and mounted from the root layout. Override the container per environment with
+`NEXT_PUBLIC_GTM_ID`.
+
+The loader uses next/script's `afterInteractive` strategy, so tags never block
+first paint — the same trade-off `@next/third-parties` makes. Switch it to
+`beforeInteractive` only if a tag must run before hydration (a consent manager,
+for example), accepting the LCP cost.
+
 ## Before launch — outstanding items
 
 1. **Photography.** All photography is placeholder stock. Replace the files in
