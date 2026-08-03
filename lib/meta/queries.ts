@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
+import { graphVersion } from "@/lib/meta/capi-payload";
 
 function daysAgo(days: number) {
   const d = new Date();
@@ -11,6 +12,119 @@ function daysAgo(days: number) {
 
 export async function getMetaAdAccounts() {
   return prisma.metaAdAccount.findMany({ orderBy: { connectedAt: "desc" } });
+}
+
+// ---------------------------------------------------------------------------
+// Conversions API console (/admin/meta-capi)
+// ---------------------------------------------------------------------------
+
+export type CapiDiagnostics = {
+  pixelIdSet: boolean;
+  tokenSource: "env" | "adAccount" | "none";
+  testEventCodeSet: boolean;
+  graphVersion: string;
+};
+
+/**
+ * Reports *whether* each piece of CAPI config is present. Deliberately returns
+ * booleans only — no token or pixel value is ever handed to the client.
+ * Mirrors `resolveAccessToken()` in lib/meta/capi.ts so the admin page reflects
+ * what the live sender would actually resolve.
+ */
+export async function getCapiDiagnostics(): Promise<CapiDiagnostics> {
+  let tokenSource: CapiDiagnostics["tokenSource"] = "none";
+  if (process.env.META_CAPI_ACCESS_TOKEN) {
+    tokenSource = "env";
+  } else {
+    const account = await prisma.metaAdAccount.findFirst({
+      where: { accessToken: { not: null } },
+      orderBy: { connectedAt: "desc" },
+      select: { id: true },
+    });
+    if (account) tokenSource = "adAccount";
+  }
+
+  return {
+    pixelIdSet: Boolean(process.env.META_PIXEL_ID),
+    tokenSource,
+    testEventCodeSet: Boolean(process.env.META_CAPI_TEST_EVENT_CODE),
+    graphVersion: graphVersion(),
+  };
+}
+
+export type CapiDeliveryRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  createdAt: Date;
+  metaCapiSentAt: Date | null;
+  metaCapiError: string | null;
+  status: "sent" | "failed" | "pending";
+};
+
+/**
+ * `Lead.metaCapiSentAt` / `Lead.metaCapiError` are written by the live sender
+ * but were never surfaced anywhere, so delivery failures were invisible.
+ */
+export async function getCapiDeliveryLog(limit = 50): Promise<CapiDeliveryRow[]> {
+  const leads = await prisma.lead.findMany({
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      metaCapiSentAt: true,
+      metaCapiError: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+
+  return leads.map((lead) => ({
+    ...lead,
+    status: lead.metaCapiError ? "failed" : lead.metaCapiSentAt ? "sent" : "pending",
+  }));
+}
+
+export async function getCapiDeliveryCounts() {
+  const [total, sent, failed] = await Promise.all([
+    prisma.lead.count(),
+    prisma.lead.count({ where: { metaCapiSentAt: { not: null }, metaCapiError: null } }),
+    prisma.lead.count({ where: { metaCapiError: { not: null } } }),
+  ]);
+  return { total, sent, failed, pending: total - sent - failed };
+}
+
+export type CapiPrefillLead = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  source: string | null;
+  createdAt: Date;
+  session: { fbclid: string | null; ipAddress: string | null; entryPath: string | null } | null;
+};
+
+const PREFILL_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  source: true,
+  createdAt: true,
+  session: { select: { fbclid: true, ipAddress: true, entryPath: true } },
+} as const;
+
+export async function getLeadsForCapiPreview(limit = 25): Promise<CapiPrefillLead[]> {
+  return prisma.lead.findMany({
+    select: PREFILL_SELECT,
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+}
+
+export async function getLeadForCapiPreview(leadId: string): Promise<CapiPrefillLead | null> {
+  return prisma.lead.findUnique({ where: { id: leadId }, select: PREFILL_SELECT });
 }
 
 export async function getMetaSummaryStats(days = 30) {
