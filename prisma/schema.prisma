@@ -51,6 +51,13 @@ model Session {
   gclid          String?
   fbclid         String?
   msclkid        String?
+  placement      String?
+  metaCampaignId String?
+  metaAdsetId    String?
+  metaAdId       String?
+  /// Every query param on the landing URL, verbatim. Catch-all so a new ad
+  /// platform or a custom param isn't lost just because it has no column here.
+  rawParams      Json?
   ipAddress      String?
   viewportWidth  Int?
   viewportHeight Int?
@@ -70,6 +77,7 @@ model Session {
   @@index([visitorId])
   @@index([startedAt])
   @@index([utmSource, utmMedium, utmCampaign])
+  @@index([metaCampaignId])
 }
 
 model PageView {

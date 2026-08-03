@@ -13,6 +13,7 @@ const TABS: { href: string; label: string; badge?: "leads" | "sessions" }[] = [
   { href: "/admin/sessions", label: "Sessions", badge: "sessions" },
   { href: "/admin/heatmap", label: "Heatmap" },
   { href: "/admin/campaigns", label: "Campaigns" },
+  { href: "/admin/meta-capi", label: "Meta CAPI" },
   { href: "/admin/funnels", label: "Funnels" },
   { href: "/admin/ctas", label: "CTAs" },
   { href: "/admin/forms", label: "Forms" },
