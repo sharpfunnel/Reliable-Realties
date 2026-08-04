@@ -5,6 +5,7 @@ import {
   GoogleTagManagerNoScript,
   GoogleTagManagerScript,
 } from "@/components/analytics/GoogleTagManager";
+import { MetaPixel } from "@/components/analytics/MetaPixel";
 import { site } from "@/lib/content";
 import { Tracker } from "@/components/track/Tracker";
 import "./globals.css";
@@ -103,6 +104,7 @@ export default function RootLayout({
         {/* GTM requires this to be the first element inside <body> */}
         <GoogleTagManagerNoScript />
         {children}
+        <MetaPixel />
         <Tracker />
       </body>
     </html>

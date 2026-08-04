@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 
 import { cn } from "@/lib/cn";
 import { contact } from "@/lib/content";
+import { trackPixelLead } from "@/lib/meta/pixel";
 import { Button } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Reveal } from "@/components/ui/Reveal";
@@ -50,10 +51,18 @@ export function Contact() {
         }),
       });
 
+      const payload = (await res.json().catch(() => null)) as
+        | { leadId?: string; error?: string }
+        | null;
+
       if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error ?? "Submission failed");
+        throw new Error(payload?.error ?? "Submission failed");
       }
+
+      // Browser half of the Lead conversion. The lead id doubles as the
+      // eventID, pairing this with the server-side CAPI event so Meta counts
+      // one conversion rather than two.
+      if (payload?.leadId) trackPixelLead(payload.leadId);
 
       form.reset();
       setStatus("success");
