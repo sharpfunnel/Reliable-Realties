@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import type { Lead } from "@/generated/prisma/client";
+import { CUSTOM_EVENT_NAME_PATTERN, type ManualCapiOptions } from "@/lib/meta/capi-constants";
 
 /**
  * Shared construction of Meta Conversions API payloads.
@@ -103,6 +104,7 @@ export type CapiEventInput = {
     currency?: string;
     contentName?: string;
     leadSource?: string;
+    orderId?: string;
   };
   includeTestEventCode: boolean;
 };
@@ -178,6 +180,7 @@ export function buildCapiPayload(input: CapiEventInput): CapiPayloadPreview {
   if (input.custom.currency?.trim()) customData.currency = input.custom.currency.trim().toUpperCase();
   if (input.custom.contentName?.trim()) customData.content_name = input.custom.contentName.trim();
   if (input.custom.leadSource?.trim()) customData.lead_source = input.custom.leadSource.trim();
+  if (input.custom.orderId?.trim()) customData.order_id = input.custom.orderId.trim();
 
   const event: Record<string, unknown> = {
     event_name: input.eventName,
@@ -236,5 +239,103 @@ export function buildCapiPayload(input: CapiEventInput): CapiPayloadPreview {
     body,
     hashed,
     warnings,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Manual send payload (the "Send" modal on /admin/leads)
+// ---------------------------------------------------------------------------
+
+/** Everything the manual sender reads off a lead, in one place. */
+export const MANUAL_LEAD_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  source: true,
+  createdAt: true,
+  visitor: { select: { city: true, region: true, country: true } },
+  session: { select: { ipAddress: true, fbclid: true, entryPath: true } },
+} as const;
+
+export type ManualCapiLead = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  source: string | null;
+  createdAt: Date;
+  visitor?: { city: string | null; region: string | null; country: string | null } | null;
+  session?: { ipAddress: string | null; fbclid: string | null; entryPath: string | null } | null;
+};
+
+/** Thrown for operator input the modal should surface, not a server fault. */
+export class ManualCapiInputError extends Error {}
+
+export function resolveManualEventName(options: ManualCapiOptions) {
+  if (options.eventType !== "Custom") return options.eventType;
+
+  const name = options.customEventName?.trim() ?? "";
+  if (!name) throw new ManualCapiInputError("Enter a custom event name.");
+  if (!CUSTOM_EVENT_NAME_PATTERN.test(name)) {
+    throw new ManualCapiInputError(
+      "Custom event names may only contain letters, numbers and underscores (max 50 characters).",
+    );
+  }
+  return name;
+}
+
+/**
+ * Turns a lead + the modal's choices into the same `CapiEventInput` the console
+ * builds, so the manual send goes through `buildCapiPayload` like everything
+ * else. The preview the operator approves is byte-for-byte the body we POST,
+ * minus the access token.
+ *
+ * `event_time` is *now*, not `lead.createdAt`: a manual send records a
+ * conversion that happened when the admin says it did, and Meta rejects events
+ * older than seven days — most leads worth converting by hand are older.
+ */
+export function buildManualCapiInput(
+  lead: ManualCapiLead,
+  options: ManualCapiOptions,
+  now = new Date(),
+): CapiEventInput {
+  const [firstName, ...rest] = (lead.name ?? "").trim().split(/\s+/).filter(Boolean);
+
+  const currency = options.currency?.trim();
+  const hasValue = typeof options.value === "number" && Number.isFinite(options.value);
+  if (hasValue && !currency) {
+    throw new ManualCapiInputError("A conversion value needs a currency.");
+  }
+
+  return {
+    eventName: resolveManualEventName(options),
+    actionSource: "website",
+    // Dedup key. Falling back to the lead id means re-sending the same event
+    // type for a lead collapses into one conversion rather than double-counting.
+    eventId: options.orderId?.trim() || lead.id,
+    eventTime: Math.floor(now.getTime() / 1000),
+    eventSourceUrl: lead.session?.entryPath ?? undefined,
+    user: {
+      email: lead.email ?? undefined,
+      phone: lead.phone ?? undefined,
+      firstName: firstName ?? undefined,
+      lastName: rest.length > 0 ? rest.join(" ") : undefined,
+      city: lead.visitor?.city ?? undefined,
+      state: lead.visitor?.region ?? undefined,
+      country: lead.visitor?.country ?? undefined,
+      externalId: lead.id,
+      clientIpAddress: lead.session?.ipAddress ?? undefined,
+      // Matches how sendLeadConversionEvent synthesizes fbc from a stored
+      // fbclid: the real click timestamp was never captured.
+      fbc: lead.session?.fbclid ? `fb.1.${lead.createdAt.getTime()}.${lead.session.fbclid}` : undefined,
+    },
+    custom: {
+      value: hasValue ? options.value : undefined,
+      currency: hasValue ? currency : undefined,
+      leadSource: lead.source ?? undefined,
+      orderId: options.orderId?.trim() || undefined,
+    },
+    includeTestEventCode: Boolean(process.env.META_CAPI_TEST_EVENT_CODE),
   };
 }

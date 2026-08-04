@@ -137,6 +137,9 @@ export async function getLeads(status?: string) {
     orderBy: { createdAt: "desc" },
     take: 500,
     include: {
+      // `visitor` and `metaAdId` are here for the Meta CAPI send modal, which
+      // shows who it is about to convert before anything is fired.
+      visitor: { select: { city: true, country: true } },
       session: {
         select: {
           utmSource: true,
@@ -145,6 +148,7 @@ export async function getLeads(status?: string) {
           utmContent: true,
           utmTerm: true,
           placement: true,
+          metaAdId: true,
           gclid: true,
           fbclid: true,
           msclkid: true,

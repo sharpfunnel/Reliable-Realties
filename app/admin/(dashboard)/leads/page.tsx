@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Table, Thead, Th, Tr, Td, EmptyState } from "@/components/admin/Table";
 import { LeadStatusSelect } from "@/components/admin/LeadStatusSelect";
-import { ResendCapiButton } from "@/components/admin/ResendCapiButton";
+import { SendCapiModal } from "@/components/admin/SendCapiModal";
 import { cn } from "@/lib/cn";
 import { formatRawParams } from "@/lib/admin/attribution";
 import { getLeads } from "@/lib/admin/queries";
@@ -96,7 +96,20 @@ export default async function AdminLeadsPage({
                     ) : (
                       <span className="text-[11px] text-slate-400">—</span>
                     )}
-                    <ResendCapiButton leadId={lead.id} />
+                    <SendCapiModal
+                      lead={{
+                        id: lead.id,
+                        name: lead.name,
+                        email: lead.email,
+                        phone: lead.phone,
+                        source: lead.source,
+                        city: lead.visitor?.city ?? null,
+                        country: lead.visitor?.country ?? null,
+                        metaAdId: lead.session?.metaAdId ?? null,
+                        placement: lead.session?.placement ?? null,
+                        fbclid: lead.session?.fbclid ?? null,
+                      }}
+                    />
                   </div>
                 </Td>
                 <Td className="whitespace-nowrap">{lead.createdAt.toLocaleString()}</Td>

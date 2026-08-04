@@ -6,7 +6,17 @@ import { verifyAdminSession } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db";
 import { syncAllMetaAdAccounts } from "@/lib/meta/sync";
 import { buildCapiPayload, type CapiPayloadPreview } from "@/lib/meta/capi-payload";
-import { ACTION_SOURCES } from "@/lib/meta/capi-constants";
+import {
+  ACTION_SOURCES,
+  CAPI_EVENT_TYPES,
+  type ManualCapiOptions,
+} from "@/lib/meta/capi-constants";
+import {
+  previewManualConversionEvent,
+  sendManualConversionEvent,
+  type ManualCapiPreview,
+  type ManualCapiResult,
+} from "@/lib/meta/capi";
 
 export async function triggerMetaSync() {
   await verifyAdminSession();
@@ -103,4 +113,62 @@ export async function previewCapiEvent(
   });
 
   return { preview };
+}
+
+// ---------------------------------------------------------------------------
+// Manual send from /admin/leads
+// ---------------------------------------------------------------------------
+
+/**
+ * Server actions are public POST endpoints, so the client's options are
+ * re-validated here rather than trusted from the modal's own state.
+ */
+function parseManualOptions(raw: ManualCapiOptions): ManualCapiOptions | { error: string } {
+  const eventType = CAPI_EVENT_TYPES.find((type) => type.value === raw?.eventType)?.value;
+  if (!eventType) return { error: "Pick an event type." };
+
+  if (raw.value !== undefined && !Number.isFinite(raw.value)) {
+    return { error: "Value must be a number." };
+  }
+  if (typeof raw.value === "number" && raw.value < 0) {
+    return { error: "Value cannot be negative." };
+  }
+
+  return {
+    eventType,
+    customEventName: typeof raw.customEventName === "string" ? raw.customEventName : undefined,
+    value: typeof raw.value === "number" ? raw.value : undefined,
+    currency: typeof raw.currency === "string" ? raw.currency : undefined,
+    orderId: typeof raw.orderId === "string" ? raw.orderId : undefined,
+  };
+}
+
+/** Builds the payload preview shown in the modal. Sends nothing. */
+export async function previewManualCapiEvent(
+  leadId: string,
+  options: ManualCapiOptions,
+): Promise<ManualCapiPreview | { error: string }> {
+  await verifyAdminSession();
+
+  const parsed = parseManualOptions(options);
+  if ("error" in parsed) return parsed;
+
+  return previewManualConversionEvent(leadId, parsed);
+}
+
+/** Fires the conversion event the modal composed. */
+export async function sendManualCapiEvent(
+  leadId: string,
+  options: ManualCapiOptions,
+): Promise<ManualCapiResult> {
+  await verifyAdminSession();
+
+  const parsed = parseManualOptions(options);
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+
+  const result = await sendManualConversionEvent(leadId, parsed);
+  if (result.ok && !result.preview) {
+    revalidatePath("/admin/leads");
+  }
+  return result;
 }
