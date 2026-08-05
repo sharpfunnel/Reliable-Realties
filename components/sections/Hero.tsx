@@ -1,12 +1,21 @@
-import Image from "next/image";
-import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+"use client";
 
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight } from "lucide-react";
+import { useState, type FormEvent } from "react";
+
+import { cn } from "@/lib/cn";
 import { hero, site } from "@/lib/content";
-import { ButtonLink } from "@/components/ui/Button";
+import { trackPixelLead } from "@/lib/meta/pixel";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Eyebrow } from "@/components/ui/Section";
 import { Reveal } from "@/components/ui/Reveal";
+import { getDeviceInfo, getSessionInit } from "@/lib/track/client/device";
+import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
+
+type Status = "idle" | "submitting" | "success" | "error";
 
 /**
  * Above-the-fold hero: full-bleed architectural photograph washed out by a
@@ -115,19 +124,73 @@ export function Hero() {
 }
 
 /**
- * Miniature, non-interactive preview of the contact form pinned to the
- * hero's top-right. Clicking it jumps straight to the real form.
+ * Miniature preview of the contact form pinned to the hero's top-right.
+ * Functionally mirrors the main enquiry form: submits straight to
+ * /api/leads and redirects to the thank-you page on success.
  */
 function ContactFormPreviewCard() {
+  const router = useRouter();
+  const [status, setStatus] = useState<Status>("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    setStatus("submitting");
+    setError(null);
+
+    const data = new FormData(form);
+    if (!data.get("consent")) {
+      setError("Please fill in all required fields.");
+      setStatus("error");
+      return;
+    }
+
+    try {
+      const [clientId] = getSessionId();
+      const res = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          formId: "hero-enquiry",
+          name: data.get("name"),
+          phone: data.get("phone"),
+          fingerprint: getVisitorId(),
+          clientId,
+          device: getDeviceInfo(),
+          sessionInit: getSessionInit(),
+        }),
+      });
+
+      const payload = (await res.json().catch(() => null)) as
+        | { leadId?: string; error?: string }
+        | null;
+
+      if (!res.ok) {
+        throw new Error(payload?.error ?? "Submission failed");
+      }
+
+      if (payload?.leadId) trackPixelLead(payload.leadId);
+
+      form.reset();
+      setStatus("success");
+      router.push(payload?.leadId ? `/thank-you?leadId=${payload.leadId}` : "/thank-you");
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setStatus("error");
+    }
+  }
+
   return (
     <Reveal
       delay={340}
       y={24}
       className="hidden w-[440px] shrink-0 lg:block lg:pt-24"
     >
-      <Link
-        href="#contact-form"
-        aria-label="Jump to the enquiry form"
+      <form
+        onSubmit={handleSubmit}
+        data-form-id="hero-enquiry"
+        aria-label="Send us a message"
         className="group flex w-full flex-col rounded-[20px] bg-white/85 p-[30px] shadow-[var(--shadow-card)] backdrop-blur-[10px] transition-transform duration-300 ease-[var(--ease-out-soft)] hover:-translate-y-1"
       >
         <div className="flex items-start justify-between gap-2">
@@ -145,31 +208,65 @@ function ContactFormPreviewCard() {
         </p>
 
         <div className="mt-5 flex flex-col gap-4">
-          <span className="flex h-10 w-full items-center rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink/55">
-            Full Name *
-          </span>
-          <span className="flex h-10 w-full items-center rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink/55">
-            Phone Number *
-          </span>
+          <label htmlFor="hero-full-name" className="sr-only">
+            Full Name
+          </label>
+          <input
+            id="hero-full-name"
+            name="name"
+            type="text"
+            placeholder="Full Name *"
+            required
+            autoComplete="name"
+            className="h-10 w-full rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink outline-none transition-colors duration-300 focus:border-gold"
+          />
+          <label htmlFor="hero-phone" className="sr-only">
+            Phone Number
+          </label>
+          <input
+            id="hero-phone"
+            name="phone"
+            type="tel"
+            placeholder="Phone Number *"
+            required
+            autoComplete="tel"
+            className="h-10 w-full rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink outline-none transition-colors duration-300 focus:border-gold"
+          />
         </div>
 
-        <div className="mt-4 flex items-start gap-2.5 text-xs leading-[1.2] text-ink/70">
-          <span
-            aria-hidden
-            className="mt-0.5 size-4 shrink-0 rounded-[4px] border border-gold/60 bg-white/60"
+        <label className="mt-4 flex items-start gap-2.5 text-xs leading-[1.2] text-ink/70">
+          <input
+            type="checkbox"
+            name="consent"
+            required
+            className="mt-0.5 size-4 shrink-0 appearance-none rounded-[4px] border border-gold/60 bg-white/60 transition-colors checked:border-gold checked:bg-gold"
           />
           <span>I agree to be contacted by {site.name} about this enquiry.</span>
-        </div>
+        </label>
 
-        <span className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-[10px] bg-ink text-sm font-semibold text-white backdrop-blur-[9px] transition-colors duration-300 group-hover:bg-ink/90">
-          Submit
-          <ArrowUpRight
-            aria-hidden
-            className="size-4 transition-transform duration-300 ease-[var(--ease-out-soft)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
-            strokeWidth={2}
-          />
-        </span>
-      </Link>
+        <Button
+          type="submit"
+          disabled={status === "submitting"}
+          className="mt-5 h-10 w-full rounded-[10px] text-sm font-semibold disabled:opacity-70"
+        >
+          {status === "submitting" ? "Sending…" : "Submit"}
+        </Button>
+
+        <p
+          aria-live="polite"
+          className={cn(
+            "mt-3 text-xs",
+            status === "success" && "text-gold",
+            status === "error" && "text-red-600",
+          )}
+        >
+          {status === "success"
+            ? "Thank you — our team will be in touch shortly."
+            : status === "error"
+              ? error ?? "Something went wrong. Please try again."
+              : ""}
+        </p>
+      </form>
     </Reveal>
   );
 }
