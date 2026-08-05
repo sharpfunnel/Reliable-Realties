@@ -57,7 +57,7 @@ export const navLinks = [
 ] as const;
 
 /** Primary call to action, reused by the navbar and mobile menu. */
-export const primaryCta = { label: "Book a Site Visit", href: "#contact" } as const;
+export const primaryCta = { label: "Book a Site Visit", href: "#contact-form" } as const;
 
 /* -------------------------------------------------------------------------- */
 /*                                    Hero                                    */
@@ -70,8 +70,8 @@ export const hero = {
   // Hard break keeps the lead to two lines from `sm` upward.
   subtitle:
     "IT & corporate offices and showrooms in Nerul MIDC, Navi Mumbai.\nCodename Magnitude by Reliable Realties.",
-  primaryCta: { label: "Contact us", href: "#contact" },
-  secondaryCta: { label: "Book a Site Visit", href: "#contact" },
+  primaryCta: { label: "Contact us", href: "#contact-form" },
+  secondaryCta: { label: "Book a Site Visit", href: "#contact-form" },
   proof: {
     // PLACEHOLDER — confirm the real figure with Reliable Realties before launch.
     count: "500+",

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { cn } from "@/lib/cn";
@@ -16,6 +17,7 @@ import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
 type Status = "idle" | "submitting" | "success" | "error";
 
 export function Contact() {
+  const router = useRouter();
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -41,9 +43,6 @@ export function Contact() {
           formId: "contact-enquiry",
           name: data.get("name"),
           phone: data.get("phone"),
-          email: data.get("email"),
-          budget: data.get("budget"),
-          message: data.get("message"),
           fingerprint: getVisitorId(),
           clientId,
           device: getDeviceInfo(),
@@ -66,6 +65,7 @@ export function Contact() {
 
       form.reset();
       setStatus("success");
+      router.push(payload?.leadId ? `/thank-you?leadId=${payload.leadId}` : "/thank-you");
     } catch {
       setError("Something went wrong. Please try again.");
       setStatus("error");
@@ -143,11 +143,12 @@ export function Contact() {
           </div>
 
           <form
+            id="contact-form"
             onSubmit={handleSubmit}
             data-form-id="contact-enquiry"
             noValidate={false}
             className={cn(
-              "rounded-[20px] bg-white/85 p-6 backdrop-blur-[10px] sm:p-[30px]",
+              "scroll-mt-24 rounded-[20px] bg-white/85 p-6 backdrop-blur-[10px] sm:p-[30px]",
               "shadow-[var(--shadow-card)]",
               "-mt-16 mx-3 sm:mx-6 lg:absolute lg:inset-x-5 lg:bottom-5 lg:mx-0 lg:mt-0",
             )}
@@ -174,49 +175,6 @@ export function Contact() {
                 placeholder="Phone Number *"
                 required
                 autoComplete="tel"
-              />
-              <Field
-                id="email"
-                name="email"
-                type="email"
-                label="Email Address"
-                placeholder="Email Address *"
-                required
-                autoComplete="email"
-              />
-
-              <div className="flex flex-col">
-                <label htmlFor="budget" className="sr-only">
-                  {contact.form.budgetLabel}
-                </label>
-                <select
-                  id="budget"
-                  name="budget"
-                  defaultValue=""
-                  className="h-10 w-full rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink outline-none transition-colors duration-300 focus:border-gold"
-                >
-                  <option value="" disabled>
-                    {contact.form.budgetLabel}
-                  </option>
-                  {contact.form.budgets.map((budget) => (
-                    <option key={budget} value={budget}>
-                      {budget}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label htmlFor="message" className="sr-only">
-                Your message
-              </label>
-              <textarea
-                id="message"
-                name="message"
-                rows={4}
-                placeholder="Describe your ideas, needs, or questions..."
-                className="w-full resize-none rounded-[10px] border border-ink/15 bg-white/60 p-3.5 text-sm text-ink outline-none transition-colors duration-300 focus:border-gold"
               />
             </div>
 

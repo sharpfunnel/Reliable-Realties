@@ -97,3 +97,44 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true, leadId: lead.id });
 }
+
+/**
+ * Fills in the optional details (email, budget, message) a visitor adds on
+ * the thank-you page after already submitting the required name + phone.
+ */
+export async function PATCH(request: Request) {
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const leadId = str(body.leadId);
+  if (!leadId) {
+    return NextResponse.json({ ok: false, error: "leadId is required" }, { status: 400 });
+  }
+
+  const email = str(body.email);
+  const budget = str(body.budget);
+  const message = str(body.message);
+
+  if (!email && !budget && !message) {
+    return NextResponse.json({ ok: false, error: "Nothing to update" }, { status: 400 });
+  }
+
+  try {
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: {
+        ...(email ? { email } : {}),
+        ...(budget ? { budget } : {}),
+        ...(message ? { message } : {}),
+      },
+    });
+  } catch {
+    return NextResponse.json({ ok: false, error: "Lead not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ ok: true });
+}

@@ -1,6 +1,8 @@
 import Image from "next/image";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
-import { hero } from "@/lib/content";
+import { hero, site } from "@/lib/content";
 import { ButtonLink } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Eyebrow } from "@/components/ui/Section";
@@ -9,7 +11,7 @@ import { Reveal } from "@/components/ui/Reveal";
 /**
  * Above-the-fold hero: full-bleed architectural photograph washed out by a
  * horizontal cream gradient, with the headline stack on the left, a floating
- * social-proof card top-right and three glass stat cards along the bottom.
+ * contact-form preview top-right and three glass stat cards along the bottom.
  */
 export function Hero() {
   return (
@@ -80,7 +82,7 @@ export function Hero() {
             </Reveal>
           </div>
 
-          <SocialProofCard />
+          <ContactFormPreviewCard />
         </div>
 
         {/* Stat cards */}
@@ -112,47 +114,62 @@ export function Hero() {
   );
 }
 
-/** Floating "500+ happy homeowners" proof card pinned to the hero's top-right. */
-function SocialProofCard() {
-  const { proof } = hero;
-
+/**
+ * Miniature, non-interactive preview of the contact form pinned to the
+ * hero's top-right. Clicking it jumps straight to the real form.
+ */
+function ContactFormPreviewCard() {
   return (
     <Reveal
       delay={340}
-      y={-20}
-      className="glass-float hidden w-[249px] shrink-0 flex-col gap-3 rounded-3xl p-6 lg:flex"
+      y={24}
+      className="hidden w-[440px] shrink-0 lg:block lg:pt-24"
     >
-      <div className="flex items-center">
-        {proof.avatars.map((src, index) => (
-          <Image
-            key={src}
-            src={src}
-            alt=""
-            width={34}
-            height={34}
-            className="relative size-[34px] rounded-full object-cover ring-2 ring-white/80"
-            style={{ marginLeft: index === 0 ? 0 : -10 }}
+      <Link
+        href="#contact-form"
+        aria-label="Jump to the enquiry form"
+        className="group flex w-full flex-col rounded-[20px] bg-white/85 p-[30px] shadow-[var(--shadow-card)] backdrop-blur-[10px] transition-transform duration-300 ease-[var(--ease-out-soft)] hover:-translate-y-1"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-display text-2xl font-normal leading-[1.15] tracking-[-0.0125em] text-ink">
+            Send Us a Message
+          </h3>
+          <ArrowUpRight
+            aria-hidden
+            className="mt-1 size-4 shrink-0 text-ink transition-transform duration-300 ease-[var(--ease-out-soft)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            strokeWidth={2}
           />
-        ))}
-        <span
-          className="relative -ml-2.5 grid size-[34px] shrink-0 place-items-center rounded-full bg-gold text-[9px] font-bold text-white ring-2 ring-white/80"
-          aria-hidden
-        >
-          {proof.count}
+        </div>
+        <p className="body-sm mt-1 text-ink">
+          Fill in your details and we&apos;ll get back to you shortly.
+        </p>
+
+        <div className="mt-5 flex flex-col gap-4">
+          <span className="flex h-10 w-full items-center rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink/55">
+            Full Name *
+          </span>
+          <span className="flex h-10 w-full items-center rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink/55">
+            Phone Number *
+          </span>
+        </div>
+
+        <div className="mt-4 flex items-start gap-2.5 text-xs leading-[1.2] text-ink/70">
+          <span
+            aria-hidden
+            className="mt-0.5 size-4 shrink-0 rounded-[4px] border border-gold/60 bg-white/60"
+          />
+          <span>I agree to be contacted by {site.name} about this enquiry.</span>
+        </div>
+
+        <span className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-[10px] bg-ink text-sm font-semibold text-white backdrop-blur-[9px] transition-colors duration-300 group-hover:bg-ink/90">
+          Submit
+          <ArrowUpRight
+            aria-hidden
+            className="size-4 transition-transform duration-300 ease-[var(--ease-out-soft)] group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            strokeWidth={2}
+          />
         </span>
-      </div>
-
-      <p className="font-display text-[32px] font-normal leading-[1.15] tracking-[-0.016em] text-ink">
-        {proof.count}
-      </p>
-      <p className="body-base text-ink-soft">{proof.label}</p>
-
-      <span aria-hidden className="h-px w-full bg-ink/10" />
-
-      <p className="text-[15px] leading-[1.2] tracking-[0.08em] text-gold" aria-label="Rated 5 out of 5">
-        <span aria-hidden>★★★★★</span>
-      </p>
-      <p className="body-sm text-ink-soft">{proof.note}</p>
+      </Link>
     </Reveal>
   );
 }
