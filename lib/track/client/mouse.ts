@@ -16,6 +16,22 @@ function cssSelector(el: Element): string {
   return classes ? `${el.tagName.toLowerCase()}.${classes}` : el.tagName.toLowerCase();
 }
 
+function elementLabel(el: Element): string | undefined {
+  const labelled = el.closest("[data-cta-id]");
+  const ctaId = labelled?.getAttribute("data-cta-id");
+  if (ctaId) return ctaId;
+
+  if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+    return el.placeholder || el.name || el.type;
+  }
+  if (el instanceof HTMLSelectElement) {
+    return el.name || el.selectedOptions[0]?.textContent?.trim();
+  }
+
+  const text = el.textContent?.replace(/\s+/g, " ").trim();
+  return text ? text.slice(0, 60) : undefined;
+}
+
 function pagePct(clientX: number, clientY: number) {
   const doc = document.documentElement;
   const pageX = clientX + window.scrollX;
@@ -37,7 +53,15 @@ export function initMouseTracking() {
 
     const path = window.location.pathname;
     const { xPct, yPct } = pagePct(e.clientX, e.clientY);
-    track.heatmap({ path, type: "click", xPct, yPct, viewportWidth: window.innerWidth });
+    track.heatmap({
+      path,
+      type: "click",
+      xPct,
+      yPct,
+      viewportWidth: window.innerWidth,
+      selector: cssSelector(target),
+      text: elementLabel(target),
+    });
 
     // Rage click: 3+ clicks on the same element within RAGE_WINDOW_MS.
     const now = Date.now();
@@ -96,6 +120,7 @@ export function initMouseTracking() {
     const now = Date.now();
     if (now - lastHoverSample < HOVER_SAMPLE_INTERVAL_MS) return;
     lastHoverSample = now;
+    const target = e.target as Element | null;
     const { xPct, yPct } = pagePct(e.clientX, e.clientY);
     track.heatmap({
       path: window.location.pathname,
@@ -103,6 +128,8 @@ export function initMouseTracking() {
       xPct,
       yPct,
       viewportWidth: window.innerWidth,
+      selector: target ? cssSelector(target) : undefined,
+      text: target ? elementLabel(target) : undefined,
     });
   }
 

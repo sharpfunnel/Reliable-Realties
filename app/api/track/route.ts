@@ -44,7 +44,10 @@ export async function POST(request: Request) {
     browser: str(device.browser),
     browserVersion: str(device.browserVersion),
     os: str(device.os),
+    osVersion: str(device.osVersion),
     deviceType: str(device.deviceType),
+    network: str(device.network),
+    downlink: num(device.downlink),
   });
 
   const session = await findOrCreateSession(request, clientId, visitor.id, {
@@ -183,6 +186,8 @@ export async function POST(request: Request) {
             xPct: num(e.xPct) ?? 0,
             yPct: num(e.yPct) ?? 0,
             viewportWidth: num(e.viewportWidth),
+            selector: str(e.selector)?.slice(0, 200),
+            text: str(e.text)?.slice(0, 200),
             createdAt: toDate(e.createdAt),
           })),
         })

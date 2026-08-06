@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { verifyAdminSession } from "@/lib/auth/dal";
 import { prisma } from "@/lib/db";
+import { getLeadDetail } from "@/lib/admin/queries";
 
 const VALID_STATUSES = ["new", "contacted", "qualified", "won", "lost"];
 
@@ -18,4 +19,9 @@ export async function updateLeadStatus(leadId: string, status: string) {
 
   revalidatePath("/admin/leads");
   revalidatePath("/admin");
+}
+
+export async function fetchLeadDetail(leadId: string) {
+  await verifyAdminSession();
+  return getLeadDetail(leadId);
 }

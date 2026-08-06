@@ -17,13 +17,42 @@ function parseBrowser(ua: string): { browser: string; browserVersion?: string } 
   return { browser: "Unknown" };
 }
 
-function parseOS(ua: string): string {
-  if (/Windows NT/.test(ua)) return "Windows";
-  if (/Mac OS X/.test(ua) && !/iPhone|iPad/.test(ua)) return "macOS";
-  if (/Android/.test(ua)) return "Android";
-  if (/iPhone|iPad|iPod/.test(ua)) return "iOS";
-  if (/Linux/.test(ua)) return "Linux";
-  return "Unknown";
+const WINDOWS_VERSIONS: Record<string, string> = {
+  "10.0": "10",
+  "6.3": "8.1",
+  "6.2": "8",
+  "6.1": "7",
+  "6.0": "Vista",
+  "5.1": "XP",
+};
+
+function parseOS(ua: string): { os: string; osVersion?: string } {
+  if (/Windows NT ([\d.]+)/.test(ua)) {
+    const [, nt] = ua.match(/Windows NT ([\d.]+)/)!;
+    return { os: "Windows", osVersion: WINDOWS_VERSIONS[nt] };
+  }
+  if (/(iPhone|iPad|iPod)/.test(ua)) {
+    const match = ua.match(/OS ([\d_]+)/);
+    return { os: "iOS", osVersion: match?.[1].replace(/_/g, ".") };
+  }
+  if (/Mac OS X/.test(ua)) {
+    const match = ua.match(/Mac OS X ([\d_]+)/);
+    return { os: "macOS", osVersion: match?.[1].replace(/_/g, ".") };
+  }
+  if (/Android/.test(ua)) {
+    const match = ua.match(/Android ([\d.]+)/);
+    return { os: "Android", osVersion: match?.[1] };
+  }
+  if (/Linux/.test(ua)) return { os: "Linux" };
+  return { os: "Unknown" };
+}
+
+type NetworkInformation = { effectiveType?: string; downlink?: number };
+
+function getConnectionInfo(): { network?: string; downlink?: number } {
+  const connection = (navigator as Navigator & { connection?: NetworkInformation }).connection;
+  if (!connection) return {};
+  return { network: connection.effectiveType, downlink: connection.downlink };
 }
 
 function parseDeviceType(ua: string): string {
@@ -35,6 +64,8 @@ function parseDeviceType(ua: string): string {
 export function getDeviceInfo() {
   const ua = navigator.userAgent;
   const { browser, browserVersion } = parseBrowser(ua);
+  const { os, osVersion } = parseOS(ua);
+  const { network, downlink } = getConnectionInfo();
 
   return {
     screenWidth: window.screen?.width,
@@ -43,8 +74,11 @@ export function getDeviceInfo() {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     browser,
     browserVersion,
-    os: parseOS(ua),
+    os,
+    osVersion,
     deviceType: parseDeviceType(ua),
+    network,
+    downlink,
   };
 }
 

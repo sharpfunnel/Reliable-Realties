@@ -21,9 +21,17 @@ model Visitor {
   browser        String?
   browserVersion String?
   os             String?
+  osVersion      String?
   deviceType     String?
   screenWidth    Int?
   screenHeight   Int?
+  /// Effective connection type from the Network Information API
+  /// (navigator.connection.effectiveType, e.g. "4g", "3g"). Unsupported in
+  /// Safari/Firefox, so this stays null for a large share of visitors.
+  network        String?
+  /// Estimated downlink speed in Mbps (navigator.connection.downlink). Same
+  /// browser-support caveat as `network`.
+  downlink       Float?
   sessions       Session[]
   leads          Lead[]
 
@@ -221,6 +229,8 @@ model HeatmapEvent {
   xPct          Float
   yPct          Float
   viewportWidth Int?
+  selector      String? // CSS selector of the clicked element (click events only)
+  text          String? // trimmed visible text of the clicked element, for display
   createdAt     DateTime @default(now())
 
   @@index([path, type])

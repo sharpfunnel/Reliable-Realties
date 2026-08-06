@@ -1,123 +1,84 @@
-import Link from "next/link";
+import { Users, CalendarDays, BadgeCheck, Trophy, XCircle, Percent } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/PageHeader";
-import { Table, Thead, Th, Tr, Td, EmptyState } from "@/components/admin/Table";
-import { LeadStatusSelect } from "@/components/admin/LeadStatusSelect";
-import { SendCapiModal } from "@/components/admin/SendCapiModal";
-import { cn } from "@/lib/cn";
-import { formatRawParams } from "@/lib/admin/attribution";
-import { getLeads } from "@/lib/admin/queries";
+import { StatTile } from "@/components/admin/StatTile";
+import { LeadsWorkspace } from "@/components/admin/leads/LeadsWorkspace";
+import { getLeads, getLeadStats, getLeadFilterOptions, resolveLeadsDateRange } from "@/lib/admin/queries";
 
-const FILTERS = ["all", "new", "contacted", "qualified", "won", "lost"];
+const PAGE_SIZE = 25;
+
+const RANGE_LABELS: Record<string, string> = {
+  today: "Today",
+  "7": "Last 7 days",
+  "30": "Last 30 days",
+  "90": "Last 90 days",
+  all: "All time",
+};
 
 export default async function AdminLeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    source?: string;
+    campaign?: string;
+    country?: string;
+    device?: string;
+    q?: string;
+    range?: string;
+    page?: string;
+  }>;
 }) {
-  const { status = "all" } = await searchParams;
-  const leads = await getLeads(status);
+  const sp = await searchParams;
+  const status = sp.status ?? "all";
+  const source = sp.source ?? "all";
+  const campaign = sp.campaign ?? "all";
+  const country = sp.country ?? "all";
+  const device = sp.device ?? "all";
+  const q = sp.q ?? "";
+  const range = sp.range ?? "30";
+  const page = Math.max(1, Number(sp.page) || 1);
+
+  const dateRange = resolveLeadsDateRange(range);
+
+  const [{ rows, total }, stats, filterOptions] = await Promise.all([
+    getLeads({
+      status,
+      source,
+      campaign,
+      country,
+      device,
+      q,
+      from: dateRange?.from,
+      to: dateRange?.to,
+      page,
+      pageSize: PAGE_SIZE,
+    }),
+    getLeadStats(dateRange),
+    getLeadFilterOptions(),
+  ]);
 
   return (
     <>
-      <PageHeader title="Leads" description={`${leads.length} lead${leads.length === 1 ? "" : "s"}`} />
+      <PageHeader title="Leads" description={`Every enquiry captured from the site — ${RANGE_LABELS[range] ?? "Last 30 days"}`} />
 
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {FILTERS.map((filter) => (
-          <Link
-            key={filter}
-            href={filter === "all" ? "/admin/leads" : `/admin/leads?status=${filter}`}
-            className={cn(
-              "rounded-full px-3 py-1 text-xs font-medium capitalize transition-colors",
-              status === filter ? "bg-ink text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200",
-            )}
-          >
-            {filter}
-          </Link>
-        ))}
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <StatTile icon={Users} label="Total Leads" value={stats.total.toLocaleString()} />
+        <StatTile icon={CalendarDays} label="Today's Leads" value={stats.today.toLocaleString()} />
+        <StatTile icon={BadgeCheck} label="Qualified" value={stats.qualified.toLocaleString()} />
+        <StatTile icon={Trophy} label="Won" value={stats.won.toLocaleString()} />
+        <StatTile icon={XCircle} label="Lost" value={stats.lost.toLocaleString()} />
+        <StatTile icon={Percent} label="Conversion Rate" value={`${stats.conversionRate.toFixed(1)}%`} />
       </div>
 
-      <Table>
-        <Thead>
-          <Tr>
-            <Th>Name</Th>
-            <Th>Phone</Th>
-            <Th>Email</Th>
-            <Th>Budget</Th>
-            <Th>Source</Th>
-            <Th>Status</Th>
-            <Th>Meta CAPI</Th>
-            <Th>Received</Th>
-          </Tr>
-        </Thead>
-        <tbody>
-          {leads.length === 0 ? (
-            <EmptyState />
-          ) : (
-            leads.map((lead) => (
-              <Tr key={lead.id}>
-                <Td className="font-medium text-slate-800">{lead.name ?? "—"}</Td>
-                <Td>{lead.phone ?? "—"}</Td>
-                <Td>{lead.email ?? "—"}</Td>
-                <Td>{lead.budget ?? "—"}</Td>
-                <Td>
-                  <div>{lead.source ?? "—"}</div>
-                  {lead.session?.utmSource && (
-                    <div
-                      className="mt-0.5 text-xs text-slate-400"
-                      title={formatRawParams(lead.session.rawParams)?.full}
-                    >
-                      <div>
-                        {lead.session.utmSource}/{lead.session.utmMedium ?? "—"}
-                        {lead.session.utmCampaign && ` · ${lead.session.utmCampaign}`}
-                      </div>
-                      {(lead.session.utmContent || lead.session.utmTerm) && (
-                        <div>
-                          {lead.session.utmContent && `ad: ${lead.session.utmContent}`}
-                          {lead.session.utmContent && lead.session.utmTerm && " · "}
-                          {lead.session.utmTerm && `adset: ${lead.session.utmTerm}`}
-                        </div>
-                      )}
-                      {lead.session.placement && <div>{lead.session.placement}</div>}
-                    </div>
-                  )}
-                </Td>
-                <Td>
-                  <LeadStatusSelect leadId={lead.id} status={lead.status} />
-                </Td>
-                <Td>
-                  <div className="flex items-center gap-1.5">
-                    {lead.metaCapiSentAt ? (
-                      <span className="text-[11px] font-medium text-emerald-600">Sent</span>
-                    ) : lead.metaCapiError ? (
-                      <span className="text-[11px] font-medium text-red-500" title={lead.metaCapiError}>
-                        Failed
-                      </span>
-                    ) : (
-                      <span className="text-[11px] text-slate-400">—</span>
-                    )}
-                    <SendCapiModal
-                      lead={{
-                        id: lead.id,
-                        name: lead.name,
-                        email: lead.email,
-                        phone: lead.phone,
-                        source: lead.source,
-                        city: lead.visitor?.city ?? null,
-                        country: lead.visitor?.country ?? null,
-                        metaAdId: lead.session?.metaAdId ?? null,
-                        placement: lead.session?.placement ?? null,
-                        fbclid: lead.session?.fbclid ?? null,
-                      }}
-                    />
-                  </div>
-                </Td>
-                <Td className="whitespace-nowrap">{lead.createdAt.toLocaleString()}</Td>
-              </Tr>
-            ))
-          )}
-        </tbody>
-      </Table>
+      <LeadsWorkspace
+        rows={rows}
+        total={total}
+        page={page}
+        pageSize={PAGE_SIZE}
+        filters={{ status, source, campaign, country, device, q, range }}
+        filterOptions={filterOptions}
+      />
     </>
   );
 }

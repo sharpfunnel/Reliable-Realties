@@ -61,7 +61,10 @@ export async function POST(request: Request) {
       browser: str(device.browser),
       browserVersion: str(device.browserVersion),
       os: str(device.os),
+      osVersion: str(device.osVersion),
       deviceType: str(device.deviceType),
+      network: str(device.network),
+      downlink: typeof device.downlink === "number" ? device.downlink : undefined,
     });
     visitorId = visitor.id;
 

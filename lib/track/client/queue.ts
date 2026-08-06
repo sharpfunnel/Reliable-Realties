@@ -109,7 +109,14 @@ export const track = {
     enqueue("errors", { ...data, createdAt: Date.now() }),
   mouse: (data: { path: string; type: string; x: number; y: number; targetSelector?: string; hoverDuration?: number }) =>
     enqueue("mouseEvents", { ...data, createdAt: Date.now() }),
-  heatmap: (data: { path: string; type: string; xPct: number; yPct: number; viewportWidth?: number }) =>
-    enqueue("heatmapEvents", { ...data, createdAt: Date.now() }),
+  heatmap: (data: {
+    path: string;
+    type: string;
+    xPct: number;
+    yPct: number;
+    viewportWidth?: number;
+    selector?: string;
+    text?: string;
+  }) => enqueue("heatmapEvents", { ...data, createdAt: Date.now() }),
   flushNow: () => flush(false),
 };

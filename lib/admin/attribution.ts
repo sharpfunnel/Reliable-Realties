@@ -40,3 +40,23 @@ export function formatClickIds(session: {
 
   return platforms.length > 0 ? platforms.join(" · ") : null;
 }
+
+/** Hostname of a referrer URL, or "Direct" when there isn't one / it doesn't parse. */
+export function referrerHost(referrer: string | null | undefined): string {
+  if (!referrer) return "Direct";
+  try {
+    return new URL(referrer).hostname;
+  } catch {
+    return referrer;
+  }
+}
+
+/**
+ * A single, filterable "Traffic Source" label for a session — the UTM source
+ * when one was captured, otherwise the referrer's hostname, otherwise "Direct".
+ * Shared by the Sessions table and its filter dropdown so both agree on the
+ * same bucketing.
+ */
+export function resolveTrafficSource(session: { utmSource?: string | null; referrer?: string | null }): string {
+  return session.utmSource || referrerHost(session.referrer);
+}

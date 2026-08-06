@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 export function Table({ children }: { children: ReactNode }) {
   return (
@@ -20,21 +20,38 @@ export function Th({ children, className = "" }: { children: ReactNode; classNam
   );
 }
 
-export function Tr({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <tr className={`border-b border-slate-100 last:border-0 hover:bg-slate-50/60 ${className}`}>{children}</tr>;
+export function Tr({
+  children,
+  className = "",
+  onClick,
+}: {
+  children: ReactNode;
+  className?: string;
+  onClick?: () => void;
+}) {
+  return (
+    <tr
+      onClick={onClick}
+      className={`border-b border-slate-100 last:border-0 hover:bg-slate-50/60 ${onClick ? "cursor-pointer" : ""} ${className}`}
+    >
+      {children}
+    </tr>
+  );
 }
 
 export function Td({
   children,
   className = "",
   title,
+  onClick,
 }: {
   children: ReactNode;
   className?: string;
   title?: string;
+  onClick?: (event: MouseEvent<HTMLTableCellElement>) => void;
 }) {
   return (
-    <td className={`px-4 py-3 align-middle text-slate-700 ${className}`} title={title}>
+    <td className={`px-4 py-3 align-middle text-slate-700 ${className}`} title={title} onClick={onClick}>
       {children}
     </td>
   );

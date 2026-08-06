@@ -12,7 +12,10 @@ export type ClientDeviceInfo = {
   browser?: string;
   browserVersion?: string;
   os?: string;
+  osVersion?: string;
   deviceType?: string;
+  network?: string;
+  downlink?: number;
 };
 
 /**
