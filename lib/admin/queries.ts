@@ -1,7 +1,13 @@
 import "server-only";
 
 import { prisma } from "@/lib/db";
-import { formatRawParams, resolveTrafficSource } from "@/lib/admin/attribution";
+import {
+  decodeTrackingValue,
+  formatClickIds,
+  formatRawParams,
+  resolveTrafficSource,
+  type RawParamsSummary,
+} from "@/lib/admin/attribution";
 
 export async function getNavCounts() {
   const [leads, sessions] = await Promise.all([
@@ -803,6 +809,16 @@ export type SessionRow = {
   referrer: string | null;
   trafficSource: string;
   utmCampaign: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmContent: string | null;
+  utmTerm: string | null;
+  placement: string | null;
+  metaCampaignId: string | null;
+  metaAdsetId: string | null;
+  metaAdId: string | null;
+  clickIds: string | null;
+  rawParams: RawParamsSummary | null;
   ipAddress: string | null;
   country: string | null;
   city: string | null;
@@ -1007,7 +1023,17 @@ export async function getSessions(filters: SessionFilters = {}, limit = 300): Pr
       currentPath: session.pageViews[0]?.path ?? session.exitPath ?? session.entryPath,
       referrer: session.referrer,
       trafficSource: resolveTrafficSource(session),
-      utmCampaign: session.utmCampaign,
+      utmCampaign: decodeTrackingValue(session.utmCampaign),
+      utmSource: decodeTrackingValue(session.utmSource),
+      utmMedium: decodeTrackingValue(session.utmMedium),
+      utmContent: decodeTrackingValue(session.utmContent),
+      utmTerm: decodeTrackingValue(session.utmTerm),
+      placement: decodeTrackingValue(session.placement),
+      metaCampaignId: session.metaCampaignId,
+      metaAdsetId: session.metaAdsetId,
+      metaAdId: session.metaAdId,
+      clickIds: formatClickIds(session),
+      rawParams: formatRawParams(session.rawParams),
       ipAddress: session.ipAddress,
       country: session.visitor.country,
       city: session.visitor.city,

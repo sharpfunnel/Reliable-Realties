@@ -26,6 +26,37 @@ export function formatRawParams(raw: unknown): RawParamsSummary | null {
   };
 }
 
+/**
+ * Ad platforms substitute their dynamic params already URL-encoded, so a Meta
+ * `{{campaign.name}}` lands as `Reliable+Realties+%E2%80%93+Lead+Gen` — the
+ * browser decodes the query string once, which only unwraps the outer layer
+ * and leaves that escaped form in the column. Decode until the value stops
+ * changing so the table reads the way the campaign does in Ads Manager.
+ * Storage stays verbatim; this is a display-time fix, which also cleans up
+ * every row captured before it.
+ */
+export function decodeTrackingValue(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  let current = value;
+  // Two rounds cover the single- and double-encoded cases; the cap keeps a
+  // pathological value from looping.
+  for (let i = 0; i < 3; i += 1) {
+    const spaced = current.replace(/\+/g, " ");
+    let next: string;
+    try {
+      next = decodeURIComponent(spaced);
+    } catch {
+      // A value truncated mid-escape (Meta clips long ones) can't be decoded.
+      // Keep the unambiguous `+` → space part rather than throwing it all away.
+      return spaced;
+    }
+    if (next === current) break;
+    current = next;
+  }
+  return current;
+}
+
 /** The click IDs, as a compact `google · meta` style list. */
 export function formatClickIds(session: {
   gclid?: string | null;
@@ -58,5 +89,5 @@ export function referrerHost(referrer: string | null | undefined): string {
  * same bucketing.
  */
 export function resolveTrafficSource(session: { utmSource?: string | null; referrer?: string | null }): string {
-  return session.utmSource || referrerHost(session.referrer);
+  return decodeTrackingValue(session.utmSource) || referrerHost(session.referrer);
 }
