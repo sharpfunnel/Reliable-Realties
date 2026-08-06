@@ -4,6 +4,7 @@ import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/db";
 import { findOrCreateSession, sanitizeRawParams, upsertVisitor } from "@/lib/track/ingest";
 import { sendLeadConversionEvent } from "@/lib/meta/capi";
+import { isValidEmail, isValidName, isValidPhone } from "@/lib/validation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,6 +30,18 @@ export async function POST(request: Request) {
       { ok: false, error: "name and at least one of phone/email are required" },
       { status: 400 },
     );
+  }
+
+  if (!isValidName(name)) {
+    return NextResponse.json({ ok: false, error: "Please enter a valid name" }, { status: 400 });
+  }
+
+  if (phone && !isValidPhone(phone)) {
+    return NextResponse.json({ ok: false, error: "Please enter a valid phone number" }, { status: 400 });
+  }
+
+  if (email && !isValidEmail(email)) {
+    return NextResponse.json({ ok: false, error: "Please enter a valid email address" }, { status: 400 });
   }
 
   const fingerprint = str(body.fingerprint);
@@ -121,6 +134,10 @@ export async function PATCH(request: Request) {
 
   if (!email && !budget && !message) {
     return NextResponse.json({ ok: false, error: "Nothing to update" }, { status: 400 });
+  }
+
+  if (email && !isValidEmail(email)) {
+    return NextResponse.json({ ok: false, error: "Please enter a valid email address" }, { status: 400 });
   }
 
   try {

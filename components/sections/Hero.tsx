@@ -14,6 +14,7 @@ import { Eyebrow } from "@/components/ui/Section";
 import { Reveal } from "@/components/ui/Reveal";
 import { getDeviceInfo, getSessionInit } from "@/lib/track/client/device";
 import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
+import { isValidName, isValidPhone, sanitizeNameInput, sanitizePhoneInput } from "@/lib/validation";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -140,6 +141,19 @@ function ContactFormPreviewCard() {
     setError(null);
 
     const data = new FormData(form);
+    const name = String(data.get("name") ?? "").trim();
+    const phone = String(data.get("phone") ?? "").trim();
+
+    if (!isValidName(name)) {
+      setError("Please enter your full name.");
+      setStatus("error");
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      setError("Please enter a valid phone number.");
+      setStatus("error");
+      return;
+    }
     if (!data.get("consent")) {
       setError("Please fill in all required fields.");
       setStatus("error");
@@ -153,8 +167,8 @@ function ContactFormPreviewCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           formId: "hero-enquiry",
-          name: data.get("name"),
-          phone: data.get("phone"),
+          name,
+          phone,
           fingerprint: getVisitorId(),
           clientId,
           device: getDeviceInfo(),
@@ -217,7 +231,12 @@ function ContactFormPreviewCard() {
             type="text"
             placeholder="Full Name *"
             required
+            minLength={2}
             autoComplete="name"
+            onChange={(e) => {
+              const sanitized = sanitizeNameInput(e.target.value);
+              if (sanitized !== e.target.value) e.target.value = sanitized;
+            }}
             className="h-10 w-full rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink outline-none transition-colors duration-300 focus:border-gold"
           />
           <label htmlFor="hero-phone" className="sr-only">
@@ -229,7 +248,15 @@ function ContactFormPreviewCard() {
             type="tel"
             placeholder="Phone Number *"
             required
+            pattern="(?=(?:\D*\d){10}\D*$)[0-9\s\-()]+"
+            title="Enter a valid 10-digit phone number"
+            maxLength={14}
+            inputMode="tel"
             autoComplete="tel"
+            onChange={(e) => {
+              const sanitized = sanitizePhoneInput(e.target.value);
+              if (sanitized !== e.target.value) e.target.value = sanitized;
+            }}
             className="h-10 w-full rounded-[10px] border border-ink/15 bg-white/60 px-3.5 text-sm text-ink outline-none transition-colors duration-300 focus:border-gold"
           />
         </div>

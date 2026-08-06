@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 
 import { contact } from "@/lib/content";
+import { isValidEmail } from "@/lib/validation";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -22,12 +23,18 @@ export function ThankYouOptionalForm({ leadId }: { leadId: string }) {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
-    const email = data.get("email");
+    const email = String(data.get("email") ?? "").trim();
     const budget = data.get("budget");
     const message = data.get("message");
 
     if (!email && !budget && !message) {
       setError("Add at least one detail to save.");
+      setStatus("error");
+      return;
+    }
+
+    if (email && !isValidEmail(email)) {
+      setError("Please enter a valid email address.");
       setStatus("error");
       return;
     }

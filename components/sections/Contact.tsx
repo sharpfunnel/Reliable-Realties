@@ -13,6 +13,7 @@ import { Reveal } from "@/components/ui/Reveal";
 import { Section, SectionHeader } from "@/components/ui/Section";
 import { getDeviceInfo, getSessionInit } from "@/lib/track/client/device";
 import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
+import { isValidName, isValidPhone, sanitizeNameInput, sanitizePhoneInput } from "@/lib/validation";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -28,6 +29,19 @@ export function Contact() {
     setError(null);
 
     const data = new FormData(form);
+    const name = String(data.get("name") ?? "").trim();
+    const phone = String(data.get("phone") ?? "").trim();
+
+    if (!isValidName(name)) {
+      setError("Please enter your full name.");
+      setStatus("error");
+      return;
+    }
+    if (!isValidPhone(phone)) {
+      setError("Please enter a valid phone number.");
+      setStatus("error");
+      return;
+    }
     if (!data.get("consent")) {
       setError("Please fill in all required fields.");
       setStatus("error");
@@ -41,8 +55,8 @@ export function Contact() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           formId: "contact-enquiry",
-          name: data.get("name"),
-          phone: data.get("phone"),
+          name,
+          phone,
           fingerprint: getVisitorId(),
           clientId,
           device: getDeviceInfo(),
@@ -165,7 +179,12 @@ export function Contact() {
                 label="Full Name"
                 placeholder="Full Name *"
                 required
+                minLength={2}
                 autoComplete="name"
+                onChange={(e) => {
+                  const sanitized = sanitizeNameInput(e.target.value);
+                  if (sanitized !== e.target.value) e.target.value = sanitized;
+                }}
               />
               <Field
                 id="phone"
@@ -174,7 +193,15 @@ export function Contact() {
                 label="Phone Number"
                 placeholder="Phone Number *"
                 required
+                pattern="(?=(?:\D*\d){10}\D*$)[0-9\s\-()]+"
+                title="Enter a valid 10-digit phone number"
+                maxLength={14}
+                inputMode="tel"
                 autoComplete="tel"
+                onChange={(e) => {
+                  const sanitized = sanitizePhoneInput(e.target.value);
+                  if (sanitized !== e.target.value) e.target.value = sanitized;
+                }}
               />
             </div>
 
