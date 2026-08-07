@@ -37,7 +37,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
-    default: `${site.name} — IT & Corporate Offices, Showrooms in Nerul MIDC, Navi Mumbai`,
+    default: `${site.name} — IT Corporate Offices, Showrooms in Nerul MIDC, Navi Mumbai`,
     template: `%s | ${site.name}`,
   },
   description: site.description,

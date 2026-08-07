@@ -3,7 +3,7 @@
  * Sections read from here so content edits never require touching markup.
  *
  * Project: Magnitude — Codename Magnitude
- * IT & corporate offices, showrooms and retail — Plot D-123, Nerul MIDC,
+ * IT corporate offices, showrooms and retail — Plot D-123, Nerul MIDC,
  * Navi Mumbai. Unit areas, dimensions and the floor stack below are taken
  * from the architect's drawings (Soyuz Talib Architects, 18-03-2026).
  */
@@ -62,12 +62,12 @@ export const primaryCta = { label: "Book a Site Visit", href: "#contact-form" } 
 /* -------------------------------------------------------------------------- */
 
 export const hero = {
-  eyebrow: "IT & Corporate Offices · Nerul MIDC",
+  eyebrow: "IT Corporate Offices · Nerul MIDC",
   // Kept to two display lines at 1440px so the stat cards stay above the fold.
   title: "Commercial Spaces Built for Growth",
   // Hard break keeps the lead to two lines from `sm` upward.
   subtitle:
-    "IT & corporate offices and showrooms in Nerul MIDC, Navi Mumbai.\nCodename Magnitude.",
+    "IT corporate offices and showrooms in Nerul MIDC, Navi Mumbai.\nCodename Magnitude.",
   primaryCta: { label: "Contact us", href: "#contact-form" },
   secondaryCta: { label: "Book a Site Visit", href: "#contact-form" },
   proof: {
@@ -128,7 +128,7 @@ export const about = {
   },
   highlights: [
     { icon: "calendarCheck", value: "2029", label: "Possession" },
-    { icon: "briefcase", label: "IT & Corporate\nOffices" },
+    { icon: "briefcase", label: "IT Corporate\nOffices" },
     { icon: "pin", label: "MIDC\nNerul Address" },
   ],
 } as const;
@@ -161,7 +161,7 @@ export const whyChoose = {
   pillars: [
     {
       number: "01",
-      title: "Built for IT & Corporate Teams",
+      title: "Built for IT Corporate Teams",
       body: "Efficient floor plates from 1,032 sq ft, five lifts, a 20'6\" lift lobby and an automated parking tower on every level.",
     },
     {
@@ -258,7 +258,7 @@ export const unitPlans = {
       name: "Office 2–7",
       type: "Compact Office",
       area: "1,032 sq ft",
-      heading: "Compact IT & Corporate Office",
+      heading: "Compact IT Corporate Office",
       image: "/images/plans/plan-03.png",
       alt: "Typical office floor plan showing compact office units 2 to 7",
       features: [
@@ -273,7 +273,7 @@ export const unitPlans = {
       name: "Office 1 & 8",
       type: "Corner Office",
       area: "2,360 sq ft",
-      heading: "Corner IT & Corporate Office",
+      heading: "Corner IT Corporate Office",
       image: "/images/plans/plan-03.png",
       alt: "Typical office floor plan showing corner office units 1 and 8",
       features: [
@@ -347,7 +347,7 @@ export const unitPlans = {
   /** Vertical mix, read off the schematic section. */
   stack: [
     { floors: "G – 1", use: "Showrooms & Retail" },
-    { floors: "2 – 14", use: "IT & Corporate Offices" },
+    { floors: "2 – 14", use: "IT Corporate Offices" },
     { floors: "15", use: "Gym & Kitchen" },
     { floors: "16 – 19", use: "Premium Offices" },
     { floors: "20", use: "Restaurant & Terrace" },
