@@ -14,7 +14,7 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
         <div className="mb-6 flex flex-col items-center gap-1 text-center">
           <span className="font-display text-2xl font-medium text-ink">
-            Reliable Realties
+            Magnitude
           </span>
           <span className="text-xs uppercase tracking-[0.2em] text-ink-muted">
             Admin dashboard

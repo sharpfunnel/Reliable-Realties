@@ -2,20 +2,20 @@
  * Single source of truth for every piece of copy on the landing page.
  * Sections read from here so content edits never require touching markup.
  *
- * Project: Reliable Realties — Codename Magnitude
+ * Project: Magnitude — Codename Magnitude
  * IT & corporate offices, showrooms and retail — Plot D-123, Nerul MIDC,
  * Navi Mumbai. Unit areas, dimensions and the floor stack below are taken
  * from the architect's drawings (Soyuz Talib Architects, 18-03-2026).
  */
 
 export const site = {
-  name: "Reliable Realties",
+  name: "Magnitude",
   /** Used where the full name is too wide (nav wordmark, schema shortName). */
-  shortName: "Reliable",
+  shortName: "Magnitude",
   tagline: "Built for Business",
   project: "Codename Magnitude",
   description:
-    "Reliable Realties presents Codename Magnitude — IT and corporate offices, showrooms and retail at Plot D-123, Nerul MIDC, Navi Mumbai. Units from ₹55.50 Lakh.",
+    "Codename Magnitude — IT and corporate offices, showrooms and retail at Plot D-123, Nerul MIDC, Navi Mumbai. Units from ₹55.50 Lakh.",
   url: "https://reliablerealties.com",
 
   contactPerson: "Aanchal Jaidhara",
@@ -67,11 +67,11 @@ export const hero = {
   title: "Commercial Spaces Built for Growth",
   // Hard break keeps the lead to two lines from `sm` upward.
   subtitle:
-    "IT & corporate offices and showrooms in Nerul MIDC, Navi Mumbai.\nCodename Magnitude by Reliable Realties.",
+    "IT & corporate offices and showrooms in Nerul MIDC, Navi Mumbai.\nCodename Magnitude.",
   primaryCta: { label: "Contact us", href: "#contact-form" },
   secondaryCta: { label: "Book a Site Visit", href: "#contact-form" },
   proof: {
-    // PLACEHOLDER — confirm the real figure with Reliable Realties before launch.
+    // PLACEHOLDER — confirm the real figure with Magnitude before launch.
     count: "500+",
     label: "Happy Clients",
     note: "Trusted across Navi Mumbai",
@@ -138,7 +138,7 @@ export const about = {
 /* -------------------------------------------------------------------------- */
 
 export const whyChoose = {
-  eyebrow: "Why Choose Reliable Realties",
+  eyebrow: "Why Choose Magnitude",
   title: "Why Choose Codename Magnitude?",
   card: {
     title: "Built with intention. Positioned for growth.",
@@ -417,7 +417,7 @@ export const planGallery = {
 export const testimonials = {
   eyebrow: "Testimonials",
   title: "Trusted by Businesses. Backed by Service.",
-  body: "Hear from owners and investors who found the right commercial space with the Reliable Realties team.",
+  body: "Hear from owners and investors who found the right commercial space with the Magnitude team.",
   items: [
     {
       quote:

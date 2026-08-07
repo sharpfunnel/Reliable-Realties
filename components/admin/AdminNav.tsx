@@ -30,7 +30,7 @@ export function AdminNav({ counts }: { counts: { leads: number; sessions: number
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-ink text-white">
       <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
-          <span className="font-display text-lg font-medium">Reliable Realties</span>
+          <span className="font-display text-lg font-medium">Magnitude</span>
           <span className="hidden text-xs uppercase tracking-[0.2em] text-white/50 sm:inline">Admin</span>
         </div>
         <div className="flex items-center gap-3">

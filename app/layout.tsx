@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     "commercial shops Nerul",
     "office space for sale Nerul",
     "Codename Magnitude",
-    "Reliable Realties",
+    "Magnitude",
     "commercial real estate investment Navi Mumbai",
   ],
   applicationName: site.name,

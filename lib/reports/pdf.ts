@@ -15,7 +15,7 @@ export async function buildSummaryPdf(
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    doc.fontSize(20).text("Reliable Realties", { continued: false });
+    doc.fontSize(20).text("Magnitude", { continued: false });
     doc.fontSize(14).fillColor("#5f6670").text(title);
     doc.moveDown(0.3);
     doc.fontSize(10).fillColor("#8a8f94").text(rangeLabel);
