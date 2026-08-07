@@ -91,7 +91,7 @@ export const hero = {
     {
       icon: "briefcase",
       value: "IT",
-      label: "& Corporate Offices",
+      label: "Corporate Offices",
       note: "1,032 – 2,360 sq ft units",
     },
     {
@@ -119,12 +119,12 @@ export const about = {
     },
     {
       src: "/images/about-thumb-2.png",
-      alt: "Naturally lit interior of a showroom unit",
+      alt: "Naturally lit interior of an office unit",
     },
   ],
   feature: {
     src: "/images/about-main.png",
-    alt: "Codename Magnitude commercial building at golden hour",
+    alt: "Codename Magnitude glass commercial tower against a clear sky",
   },
   highlights: [
     { icon: "calendarCheck", value: "2029", label: "Possession" },
@@ -151,7 +151,7 @@ export const whyChoose = {
     },
     topRight: {
       src: "/images/why-thumb-1.png",
-      alt: "Outdoor breakout and dining terrace",
+      alt: "Breakout lounge with skyline views",
     },
     bottomRight: {
       src: "/images/about-thumb-2.png",
@@ -225,14 +225,14 @@ export const amenities = {
       title: "Café & Kitchen",
       body: "1,680 sq ft catering kitchen serving the 15th floor.",
       image: "/images/why-thumb-1.png",
-      alt: "Café seating area with outdoor tables",
+      alt: "Café seating area with skyline views",
     },
     {
       icon: "car",
       title: "Parking & Driveways",
       body: "Automated parking tower with 7.5m–10.3m driveways.",
       image: "/images/amenity-courtyard.png",
-      alt: "Landscaped driveway running alongside a commercial building",
+      alt: "Landscaped approach alongside the commercial building",
     },
   ],
 } as const;
@@ -577,7 +577,7 @@ export const contact = {
   body: "Units start from ₹55.50 Lakh — ask us for the current price sheet.\nOur team is just a call or WhatsApp away.\nWe'd love to hear from you!",
   image: {
     src: "/images/about-main.png",
-    alt: "Codename Magnitude commercial building at golden hour",
+    alt: "Codename Magnitude glass commercial tower against a clear sky",
   },
   details: [
     { icon: "phone", label: "Call Us", value: site.phone, href: site.phoneHref },
