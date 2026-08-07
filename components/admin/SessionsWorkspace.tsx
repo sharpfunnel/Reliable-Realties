@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Columns3, Download, PlayCircle, RotateCcw, Search } from "lucide-react";
 
@@ -23,67 +23,6 @@ const VISITOR_TYPE_OPTIONS = [
   { value: "returning", label: "Returning visitors" },
 ];
 
-type ColumnKey =
-  | "sessionId"
-  | "visitorId"
-  | "ip"
-  | "country"
-  | "city"
-  | "region"
-  | "timezone"
-  | "device"
-  | "os"
-  | "browser"
-  | "screen"
-  | "language"
-  | "network"
-  | "referrer"
-  | "source"
-  | "campaign"
-  | "landingPage"
-  | "currentPage"
-  | "pagesViewed"
-  | "avgScroll"
-  | "maxScroll"
-  | "mouseClicks"
-  | "mouseMoves"
-  | "formStarted"
-  | "formSubmitted"
-  | "ctaClicked";
-
-const COLUMN_LABELS: Record<ColumnKey, string> = {
-  sessionId: "Session ID",
-  visitorId: "Visitor ID",
-  ip: "IP Address",
-  country: "Country",
-  city: "City",
-  region: "Region",
-  timezone: "Timezone",
-  device: "Device",
-  os: "Operating System",
-  browser: "Browser",
-  screen: "Screen Resolution",
-  language: "Language",
-  network: "Network",
-  referrer: "Referrer",
-  source: "Traffic Source",
-  campaign: "Campaign",
-  landingPage: "Landing Page",
-  currentPage: "Current Page",
-  pagesViewed: "Pages Viewed",
-  avgScroll: "Avg Scroll %",
-  maxScroll: "Max Scroll %",
-  mouseClicks: "Mouse Clicks",
-  mouseMoves: "Mouse Movements",
-  formStarted: "Form Started",
-  formSubmitted: "Form Submitted",
-  ctaClicked: "CTA Clicked",
-};
-
-const DEFAULT_VISIBLE: Record<ColumnKey, boolean> = Object.fromEntries(
-  (Object.keys(COLUMN_LABELS) as ColumnKey[]).map((key) => [key, true]),
-) as Record<ColumnKey, boolean>;
-
 export type SessionsFilterValues = {
   range: string;
   visitorType: string;
@@ -103,13 +42,12 @@ function formatDuration(seconds: number | null) {
   return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
-function formatVisitTime(date: Date) {
-  return date.toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+function formatDate(date: Date) {
+  return date.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+}
+
+function formatTime(date: Date) {
+  return date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 function formatRelative(date: Date) {
@@ -148,6 +86,203 @@ function YesNo({ value }: { value: boolean }) {
     </span>
   );
 }
+
+type Column = {
+  key: string;
+  label: string;
+  /** Always rendered and kept out of the Columns menu — the row's own affordance. */
+  pinned?: boolean;
+  /** Available in the Columns menu but off until asked for — sparse or debug-ish data. */
+  defaultHidden?: boolean;
+  /** Applied to both the header and the cells, so the two stay aligned. */
+  align?: "center" | "right";
+  className?: string;
+  title?: (session: SessionRow) => string | undefined;
+  render: (session: SessionRow) => ReactNode;
+};
+
+/**
+ * The table is driven by this one ordered list, so header and cells can't drift
+ * apart and reordering a column is a single move. Order reflects how the table
+ * is read: when the visit happened and which campaign it came from first, the
+ * technical context after, and the opaque IDs last.
+ */
+const COLUMNS: Column[] = [
+  {
+    key: "replay",
+    label: "Replay",
+    pinned: true,
+    render: (session) =>
+      session.hasReplay ? (
+        <span className="inline-flex items-center gap-1 text-xs font-medium text-gold">
+          <PlayCircle className="size-3.5" strokeWidth={2} />
+          Watch
+        </span>
+      ) : (
+        <span className="text-xs text-slate-300">—</span>
+      ),
+  },
+  { key: "status", label: "Status", render: (session) => <StatusBadge status={session.status} /> },
+  { key: "date", label: "Date", className: "whitespace-nowrap", render: (session) => formatDate(session.startedAt) },
+  { key: "time", label: "Time", className: "whitespace-nowrap", render: (session) => formatTime(session.startedAt) },
+  {
+    key: "timeAgo",
+    label: "Time Ago",
+    className: "whitespace-nowrap text-slate-500",
+    render: (session) => formatRelative(session.startedAt),
+  },
+
+  // Campaign block — the acquisition story, up front.
+  {
+    key: "campaign",
+    label: "Campaign",
+    className: "max-w-64 truncate",
+    title: (session) => session.utmCampaign ?? undefined,
+    render: (session) => session.utmCampaign ?? "—",
+  },
+  { key: "source", label: "Traffic Source", className: "whitespace-nowrap", render: (session) => session.trafficSource },
+  { key: "utmSource", label: "UTM Source", render: (session) => session.utmSource ?? "—" },
+  { key: "utmMedium", label: "UTM Medium", render: (session) => session.utmMedium ?? "—" },
+  {
+    key: "utmContent",
+    label: "UTM Content",
+    className: "max-w-48 truncate",
+    title: (session) => session.utmContent ?? undefined,
+    render: (session) => session.utmContent ?? "—",
+  },
+  {
+    key: "utmTerm",
+    label: "UTM Term",
+    defaultHidden: true,
+    className: "max-w-48 truncate",
+    title: (session) => session.utmTerm ?? undefined,
+    render: (session) => session.utmTerm ?? "—",
+  },
+  { key: "placement", label: "Placement", render: (session) => session.placement ?? "—" },
+  {
+    key: "metaCampaignId",
+    label: "Meta Campaign ID",
+    defaultHidden: true,
+    className: "font-mono text-xs text-slate-500",
+    render: (session) => session.metaCampaignId ?? "—",
+  },
+  {
+    key: "metaAdsetId",
+    label: "Meta Ad Set ID",
+    defaultHidden: true,
+    className: "font-mono text-xs text-slate-500",
+    render: (session) => session.metaAdsetId ?? "—",
+  },
+  {
+    key: "metaAdId",
+    label: "Meta Ad ID",
+    defaultHidden: true,
+    className: "font-mono text-xs text-slate-500",
+    render: (session) => session.metaAdId ?? "—",
+  },
+  { key: "clickIds", label: "Click IDs", defaultHidden: true, render: (session) => session.clickIds ?? "—" },
+  {
+    key: "rawParams",
+    label: "URL Params",
+    defaultHidden: true,
+    className: "whitespace-nowrap text-slate-500",
+    title: (session) => session.rawParams?.full,
+    render: (session) => session.rawParams?.preview ?? "—",
+  },
+  {
+    key: "referrer",
+    label: "Referrer",
+    className: "max-w-40 truncate",
+    title: (session) => session.referrer ?? undefined,
+    render: (session) => session.referrer ?? "Direct",
+  },
+
+  // What they did on the site.
+  {
+    key: "visitorType",
+    label: "Visitor Type",
+    render: (session) => (
+      <span className={session.isReturning ? "text-gold" : "text-slate-500"}>
+        {session.isReturning ? "Returning" : "New"}
+      </span>
+    ),
+  },
+  {
+    key: "landingPage",
+    label: "Landing Page",
+    className: "max-w-32 truncate font-mono text-xs",
+    title: (session) => session.entryPath ?? undefined,
+    render: (session) => session.entryPath ?? "—",
+  },
+  {
+    key: "currentPage",
+    label: "Current Page",
+    className: "max-w-32 truncate font-mono text-xs",
+    title: (session) => session.currentPath ?? undefined,
+    render: (session) => session.currentPath ?? "—",
+  },
+  { key: "pagesViewed", label: "Pages Viewed", align: "center", render: (session) => session.pagesViewed },
+  { key: "duration", label: "Duration", align: "right", render: (session) => formatDuration(session.totalDuration) },
+  { key: "formStarted", label: "Form Started", render: (session) => <YesNo value={session.formStarted} /> },
+  { key: "formSubmitted", label: "Form Submitted", render: (session) => <YesNo value={session.formSubmitted} /> },
+  { key: "ctaClicked", label: "CTA Clicked", render: (session) => <YesNo value={session.ctaClicked} /> },
+  {
+    key: "bounce",
+    label: "Bounce",
+    render: (session) => (
+      <span className={cn("font-medium", session.isBounce ? "text-red-500" : "text-emerald-600")}>
+        {session.isBounce ? "Yes" : "No"}
+      </span>
+    ),
+  },
+  { key: "avgScroll", label: "Avg Scroll %", render: (session) => `${session.avgScrollPct}%` },
+  { key: "maxScroll", label: "Max Scroll %", render: (session) => `${session.maxScrollPct}%` },
+  { key: "mouseClicks", label: "Mouse Clicks", align: "center", render: (session) => session.mouseClicks },
+  { key: "mouseMoves", label: "Mouse Movements", align: "center", render: (session) => session.mouseMovements },
+
+  // Where and on what.
+  { key: "country", label: "Country", render: (session) => session.country ?? "—" },
+  { key: "city", label: "City", render: (session) => session.city ?? "—" },
+  { key: "region", label: "Region", render: (session) => session.region ?? "—" },
+  { key: "timezone", label: "Timezone", className: "whitespace-nowrap", render: (session) => session.timezone ?? "—" },
+  { key: "device", label: "Device", className: "capitalize", render: (session) => session.deviceType ?? "—" },
+  { key: "os", label: "Operating System", render: (session) => session.os ?? "—" },
+  { key: "browser", label: "Browser", render: (session) => session.browser ?? "—" },
+  {
+    key: "screen",
+    label: "Screen Resolution",
+    className: "whitespace-nowrap",
+    render: (session) =>
+      session.screenWidth && session.screenHeight ? `${session.screenWidth}×${session.screenHeight}` : "—",
+  },
+  { key: "language", label: "Language", render: (session) => session.language ?? "—" },
+  { key: "network", label: "Network", render: (session) => (session.network ? session.network.toUpperCase() : "—") },
+  { key: "ip", label: "IP Address", className: "whitespace-nowrap", render: (session) => session.ipAddress ?? "—" },
+
+  // Identifiers — needed for support lookups, never for scanning the table.
+  {
+    key: "sessionId",
+    label: "Session ID",
+    className: "font-mono text-xs text-slate-500",
+    title: (session) => session.id,
+    render: (session) => `s_${session.id.slice(0, 12)}`,
+  },
+  {
+    key: "visitorId",
+    label: "Visitor ID",
+    className: "font-mono text-xs text-slate-500",
+    title: (session) => session.visitorId,
+    render: (session) => `v_${session.fingerprint.slice(0, 12)}`,
+  },
+];
+
+const ALIGN_CLASS = { left: "", center: "text-center", right: "text-right" } as const;
+
+const TOGGLEABLE_COLUMNS = COLUMNS.filter((column) => !column.pinned);
+
+const DEFAULT_VISIBLE: Record<string, boolean> = Object.fromEntries(
+  TOGGLEABLE_COLUMNS.map((column) => [column.key, !column.defaultHidden]),
+);
 
 export function SessionsWorkspace({
   rows,
@@ -200,7 +335,8 @@ export function SessionsWorkspace({
   }, [searchInput]);
 
   const [visibleColumns, setVisibleColumns] = useState(DEFAULT_VISIBLE);
-  const toggleColumn = (key: ColumnKey) => setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleColumn = (key: string) => setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }));
+  const shownColumns = COLUMNS.filter((column) => column.pinned || visibleColumns[column.key]);
 
   const [columnsOpen, setColumnsOpen] = useState(false);
   const columnsRef = useRef<HTMLDivElement>(null);
@@ -333,18 +469,18 @@ export function SessionsWorkspace({
           </button>
           {columnsOpen ? (
             <div className="absolute right-0 z-20 mt-1.5 max-h-80 w-56 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-              {(Object.keys(COLUMN_LABELS) as ColumnKey[]).map((key) => (
+              {TOGGLEABLE_COLUMNS.map((column) => (
                 <label
-                  key={key}
+                  key={column.key}
                   className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
                 >
                   <input
                     type="checkbox"
-                    checked={visibleColumns[key]}
-                    onChange={() => toggleColumn(key)}
+                    checked={visibleColumns[column.key]}
+                    onChange={() => toggleColumn(column.key)}
                     className="size-3.5 rounded border-slate-300"
                   />
-                  {COLUMN_LABELS[key]}
+                  {column.label}
                 </label>
               ))}
             </div>
@@ -363,39 +499,11 @@ export function SessionsWorkspace({
       <Table>
         <Thead>
           <Tr>
-            <Th>Replay</Th>
-            <Th>Status</Th>
-            {visibleColumns.sessionId ? <Th>Session ID</Th> : null}
-            {visibleColumns.visitorId ? <Th>Visitor ID</Th> : null}
-            <Th>Visitor Type</Th>
-            <Th>Visit Time</Th>
-            <Th>Time Ago</Th>
-            {visibleColumns.ip ? <Th>IP Address</Th> : null}
-            {visibleColumns.country ? <Th>Country</Th> : null}
-            {visibleColumns.city ? <Th>City</Th> : null}
-            {visibleColumns.region ? <Th>Region</Th> : null}
-            {visibleColumns.timezone ? <Th>Timezone</Th> : null}
-            {visibleColumns.device ? <Th>Device</Th> : null}
-            {visibleColumns.os ? <Th>Operating System</Th> : null}
-            {visibleColumns.browser ? <Th>Browser</Th> : null}
-            {visibleColumns.screen ? <Th>Screen Resolution</Th> : null}
-            {visibleColumns.language ? <Th>Language</Th> : null}
-            {visibleColumns.network ? <Th>Network</Th> : null}
-            {visibleColumns.referrer ? <Th>Referrer</Th> : null}
-            {visibleColumns.source ? <Th>Traffic Source</Th> : null}
-            {visibleColumns.campaign ? <Th>Campaign</Th> : null}
-            {visibleColumns.landingPage ? <Th>Landing Page</Th> : null}
-            {visibleColumns.currentPage ? <Th>Current Page</Th> : null}
-            {visibleColumns.pagesViewed ? <Th>Pages Viewed</Th> : null}
-            <Th className="text-right">Duration</Th>
-            {visibleColumns.avgScroll ? <Th>Avg Scroll %</Th> : null}
-            {visibleColumns.maxScroll ? <Th>Max Scroll %</Th> : null}
-            {visibleColumns.mouseClicks ? <Th>Mouse Clicks</Th> : null}
-            {visibleColumns.mouseMoves ? <Th>Mouse Movements</Th> : null}
-            {visibleColumns.formStarted ? <Th>Form Started</Th> : null}
-            {visibleColumns.formSubmitted ? <Th>Form Submitted</Th> : null}
-            {visibleColumns.ctaClicked ? <Th>CTA Clicked</Th> : null}
-            <Th>Bounce</Th>
+            {shownColumns.map((column) => (
+              <Th key={column.key} className={ALIGN_CLASS[column.align ?? "left"]}>
+                {column.label}
+              </Th>
+            ))}
           </Tr>
         </Thead>
         <tbody>
@@ -404,94 +512,15 @@ export function SessionsWorkspace({
           ) : (
             rows.map((session) => (
               <Tr key={session.id} onClick={session.hasReplay ? () => openReplay(session) : undefined}>
-                <Td>
-                  {session.hasReplay ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-gold">
-                      <PlayCircle className="size-3.5" strokeWidth={2} />
-                      Watch
-                    </span>
-                  ) : (
-                    <span className="text-xs text-slate-300">—</span>
-                  )}
-                </Td>
-                <Td>
-                  <StatusBadge status={session.status} />
-                </Td>
-                {visibleColumns.sessionId ? (
-                  <Td className="font-mono text-xs text-slate-500" title={session.id}>
-                    s_{session.id.slice(0, 12)}
+                {shownColumns.map((column) => (
+                  <Td
+                    key={column.key}
+                    className={cn(ALIGN_CLASS[column.align ?? "left"], column.className)}
+                    title={column.title?.(session)}
+                  >
+                    {column.render(session)}
                   </Td>
-                ) : null}
-                {visibleColumns.visitorId ? (
-                  <Td className="font-mono text-xs text-slate-500" title={session.visitorId}>
-                    v_{session.fingerprint.slice(0, 12)}
-                  </Td>
-                ) : null}
-                <Td>
-                  <span className={session.isReturning ? "text-gold" : "text-slate-500"}>
-                    {session.isReturning ? "Returning" : "New"}
-                  </span>
-                </Td>
-                <Td className="whitespace-nowrap">{formatVisitTime(session.startedAt)}</Td>
-                <Td className="whitespace-nowrap text-slate-500">{formatRelative(session.startedAt)}</Td>
-                {visibleColumns.ip ? <Td className="whitespace-nowrap">{session.ipAddress ?? "—"}</Td> : null}
-                {visibleColumns.country ? <Td>{session.country ?? "—"}</Td> : null}
-                {visibleColumns.city ? <Td>{session.city ?? "—"}</Td> : null}
-                {visibleColumns.region ? <Td>{session.region ?? "—"}</Td> : null}
-                {visibleColumns.timezone ? <Td className="whitespace-nowrap">{session.timezone ?? "—"}</Td> : null}
-                {visibleColumns.device ? <Td className="capitalize">{session.deviceType ?? "—"}</Td> : null}
-                {visibleColumns.os ? <Td>{session.os ?? "—"}</Td> : null}
-                {visibleColumns.browser ? <Td>{session.browser ?? "—"}</Td> : null}
-                {visibleColumns.screen ? (
-                  <Td className="whitespace-nowrap">
-                    {session.screenWidth && session.screenHeight ? `${session.screenWidth}×${session.screenHeight}` : "—"}
-                  </Td>
-                ) : null}
-                {visibleColumns.language ? <Td>{session.language ?? "—"}</Td> : null}
-                {visibleColumns.network ? <Td>{session.network ? session.network.toUpperCase() : "—"}</Td> : null}
-                {visibleColumns.referrer ? (
-                  <Td className="max-w-40 truncate" title={session.referrer ?? undefined}>
-                    {session.referrer ?? "Direct"}
-                  </Td>
-                ) : null}
-                {visibleColumns.source ? <Td>{session.trafficSource}</Td> : null}
-                {visibleColumns.campaign ? <Td>{session.utmCampaign ?? "—"}</Td> : null}
-                {visibleColumns.landingPage ? (
-                  <Td className="max-w-32 truncate font-mono text-xs" title={session.entryPath ?? undefined}>
-                    {session.entryPath ?? "—"}
-                  </Td>
-                ) : null}
-                {visibleColumns.currentPage ? (
-                  <Td className="max-w-32 truncate font-mono text-xs" title={session.currentPath ?? undefined}>
-                    {session.currentPath ?? "—"}
-                  </Td>
-                ) : null}
-                {visibleColumns.pagesViewed ? <Td className="text-center">{session.pagesViewed}</Td> : null}
-                <Td className="text-right">{formatDuration(session.totalDuration)}</Td>
-                {visibleColumns.avgScroll ? <Td>{session.avgScrollPct}%</Td> : null}
-                {visibleColumns.maxScroll ? <Td>{session.maxScrollPct}%</Td> : null}
-                {visibleColumns.mouseClicks ? <Td className="text-center">{session.mouseClicks}</Td> : null}
-                {visibleColumns.mouseMoves ? <Td className="text-center">{session.mouseMovements}</Td> : null}
-                {visibleColumns.formStarted ? (
-                  <Td>
-                    <YesNo value={session.formStarted} />
-                  </Td>
-                ) : null}
-                {visibleColumns.formSubmitted ? (
-                  <Td>
-                    <YesNo value={session.formSubmitted} />
-                  </Td>
-                ) : null}
-                {visibleColumns.ctaClicked ? (
-                  <Td>
-                    <YesNo value={session.ctaClicked} />
-                  </Td>
-                ) : null}
-                <Td>
-                  <span className={cn("font-medium", session.isBounce ? "text-red-500" : "text-emerald-600")}>
-                    {session.isBounce ? "Yes" : "No"}
-                  </span>
-                </Td>
+                ))}
               </Tr>
             ))
           )}
