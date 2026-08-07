@@ -42,7 +42,7 @@ const jsonLd = [
     "@type": "Product",
     name: `${site.name} — ${site.project}`,
     description:
-      "IT and corporate offices, showrooms and retail units at Plot D-123, Nerul MIDC, Navi Mumbai. Office units from 1,032 sq ft to 2,360 sq ft sale area.",
+      "IT corporate offices, showrooms and retail units at Plot D-123, Nerul MIDC, Navi Mumbai. Office units from 1,032 sq ft to 2,360 sq ft sale area.",
     image: `${site.url}/images/hero-building.png`,
     brand: { "@type": "Brand", name: site.name },
     offers: {

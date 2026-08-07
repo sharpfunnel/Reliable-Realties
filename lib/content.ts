@@ -15,7 +15,7 @@ export const site = {
   tagline: "Built for Business",
   project: "Codename Magnitude",
   description:
-    "Codename Magnitude — IT and corporate offices, showrooms and retail at Plot D-123, Nerul MIDC, Navi Mumbai. Units from ₹55.50 Lakh.",
+    "Codename Magnitude — IT corporate offices, showrooms and retail at Plot D-123, Nerul MIDC, Navi Mumbai. Units from ₹55.50 Lakh.",
   url: "https://reliablerealties.com",
 
   contactPerson: "Aanchal Jaidhara",
@@ -111,7 +111,7 @@ export const about = {
   eyebrow: "About Codename Magnitude",
   title: "A Commercial Address Built to Last",
   // Hard line breaks mirror the reference's three-line balance.
-  body: "A 20-storey commercial tower in the heart of Nerul MIDC — IT and corporate\noffices above double-height showrooms, served by five lifts, an automated\nparking tower and a rooftop restaurant.",
+  body: "A 20-storey commercial tower in the heart of Nerul MIDC — IT corporate\noffices above double-height showrooms, served by five lifts, an automated\nparking tower and a rooftop restaurant.",
   thumbnails: [
     {
       src: "/images/about-thumb-1.png",
@@ -248,7 +248,7 @@ export const amenities = {
 export const unitPlans = {
   eyebrow: "Unit Plans",
   title: "Efficient Layouts, Flexible Footprints",
-  body: "IT and corporate offices, showrooms and retail across twenty floors. Every area below is taken from the approved architectural drawings.",
+  body: "IT corporate offices, showrooms and retail across twenty floors. Every area below is taken from the approved architectural drawings.",
   /** Label above the headline figure in the detail panel. */
   metricLabel: "Sale Area",
   planLinkLabel: "View full floor plan",
@@ -521,7 +521,7 @@ export const faq = {
     {
       question: "What types of units are available?",
       answer:
-        "Codename Magnitude is a pure commercial project across twenty floors: double-height showrooms on the ground and first floors, IT and corporate offices from the 2nd to the 14th floor, a recreational level on the 15th, premium offices on the 16th to 19th, and a restaurant with a sky terrace on the 20th. Office units range from 1,032 sq ft to 2,360 sq ft sale area.",
+        "Codename Magnitude is a pure commercial project across twenty floors: double-height showrooms on the ground and first floors, IT corporate offices from the 2nd to the 14th floor, a recreational level on the 15th, premium offices on the 16th to 19th, and a restaurant with a sky terrace on the 20th. Office units range from 1,032 sq ft to 2,360 sq ft sale area.",
     },
     {
       question: "What is the price range?",
@@ -546,7 +546,7 @@ export const faq = {
     {
       question: "Is the project suitable for an IT or corporate office?",
       answer:
-        "Yes. Floors 2 to 19 are planned as IT and corporate office space, with efficient floor plates from 1,032 sq ft, five lifts serving a 20'6\" × 9'0\" lift lobby, an attached W.C. in every unit and an automated parking tower on each level.",
+        "Yes. Floors 2 to 19 are planned as IT corporate office space, with efficient floor plates from 1,032 sq ft, five lifts serving a 20'6\" × 9'0\" lift lobby, an attached W.C. in every unit and an automated parking tower on each level.",
     },
     {
       question: "Can I customise the interiors of my unit?",
