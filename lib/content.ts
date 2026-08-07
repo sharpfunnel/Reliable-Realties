@@ -49,8 +49,6 @@ export const site = {
 export const navLinks = [
   { label: "About", href: "#about" },
   { label: "Amenities", href: "#amenities" },
-  { label: "Unit Plans", href: "#unit-plans" },
-  { label: "Floor Plans", href: "#floor-plans" },
   { label: "Testimonials", href: "#testimonials" },
   { label: "Faq's", href: "#faq" },
   { label: "Contact", href: "#contact" },
@@ -114,7 +112,6 @@ export const about = {
   title: "A Commercial Address Built to Last",
   // Hard line breaks mirror the reference's three-line balance.
   body: "A 20-storey commercial tower in the heart of Nerul MIDC — IT and corporate\noffices above double-height showrooms, served by five lifts, an automated\nparking tower and a rooftop restaurant.",
-  cta: { label: "View Unit Plans", href: "#unit-plans" },
   thumbnails: [
     {
       src: "/images/about-thumb-1.png",

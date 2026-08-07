@@ -1,7 +1,6 @@
 import Image from "next/image";
 
 import { about } from "@/lib/content";
-import { ButtonLink } from "@/components/ui/Button";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { Reveal } from "@/components/ui/Reveal";
 import { Section, SectionHeader } from "@/components/ui/Section";
@@ -23,11 +22,7 @@ export function About() {
             title={about.title}
             body={about.body}
             bodyClassName="sm:whitespace-pre-line sm:max-w-none"
-          >
-            <Reveal delay={240}>
-              <ButtonLink href={about.cta.href}>{about.cta.label}</ButtonLink>
-            </Reveal>
-          </SectionHeader>
+          />
 
           {/* Thumbnails */}
           <div className="grid grid-cols-2 gap-2.5">

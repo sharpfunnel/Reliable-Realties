@@ -6,9 +6,7 @@ import { Contact } from "@/components/sections/Contact";
 import { Faq } from "@/components/sections/Faq";
 import { Hero } from "@/components/sections/Hero";
 import { Location } from "@/components/sections/Location";
-import { PlanGallery } from "@/components/sections/PlanGallery";
 import { Testimonials } from "@/components/sections/Testimonials";
-import { UnitPlans } from "@/components/sections/UnitPlans";
 import { WhyChoose } from "@/components/sections/WhyChoose";
 import { faq, site, unitPlans } from "@/lib/content";
 
@@ -82,8 +80,6 @@ export default function HomePage() {
         <About />
         <WhyChoose />
         <Amenities />
-        <UnitPlans />
-        <PlanGallery />
         <Testimonials />
         <Location />
         <Faq />
