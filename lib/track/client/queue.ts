@@ -5,6 +5,7 @@ import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
 
 const FLUSH_INTERVAL_MS = 5000;
 const FLUSH_SIZE_THRESHOLD = 20;
+const MAX_QUEUED_PER_KEY = 100;
 const TRACK_ENDPOINT = "/api/track";
 
 type Batch = {
@@ -41,8 +42,18 @@ function batchSize() {
   return Object.values(batch).reduce((sum, arr) => sum + arr.length, 0);
 }
 
+function requeue(pending: Batch) {
+  for (const key of Object.keys(pending) as (keyof Batch)[]) {
+    const merged = [...(pending[key] as unknown[]), ...(batch[key] as unknown[])];
+    (batch[key] as unknown[]) = merged.slice(-MAX_QUEUED_PER_KEY);
+  }
+}
+
 function flush(sync = false) {
   if (batchSize() === 0) return;
+
+  const pending = batch;
+  batch = emptyBatch();
 
   const [clientId] = getSessionId();
   const payload = {
@@ -52,13 +63,13 @@ function flush(sync = false) {
     sessionInit: getSessionInit(),
     exitPath,
     endSession: sync,
-    ...batch,
+    ...pending,
   };
-  batch = emptyBatch();
 
   const body = JSON.stringify(payload);
 
   if (sync && "sendBeacon" in navigator) {
+    // sendBeacon gives no delivery feedback, so a batch lost here can't be retried.
     navigator.sendBeacon(TRACK_ENDPOINT, new Blob([body], { type: "application/json" }));
     return;
   }
@@ -68,7 +79,11 @@ function flush(sync = false) {
     headers: { "Content-Type": "application/json" },
     body,
     keepalive: sync,
-  }).catch(() => {});
+  })
+    .then((res) => {
+      if (!res.ok) requeue(pending);
+    })
+    .catch(() => requeue(pending));
 }
 
 export function initQueue() {

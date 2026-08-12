@@ -23,21 +23,24 @@ function formatElapsed(startedAt: number, at: string) {
 
 export function SessionReplayModal({ session, onClose }: { session: SessionRow; onClose: () => void }) {
   const [data, setData] = useState<ReplayData | null>(null);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     fetch(`/api/admin/sessions/${session.id}/replay`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load replay");
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.error ?? `Request failed (${res.status})`);
+        }
         return res.json();
       })
       .then((json: ReplayData) => {
         if (!cancelled) setData(json);
       })
-      .catch(() => {
-        if (!cancelled) setError(true);
+      .catch((err: unknown) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load replay");
       });
 
     return () => {
@@ -106,8 +109,10 @@ export function SessionReplayModal({ session, onClose }: { session: SessionRow; 
         <div className="grid gap-4 px-5 py-4 md:grid-cols-[2fr_1fr]">
           <div className="min-w-0">
             {error ? (
-              <div className="grid h-40 place-items-center rounded-xl border border-slate-200 text-sm text-slate-400">
+              <div className="grid h-40 place-items-center rounded-xl border border-slate-200 px-4 text-center text-sm text-slate-400">
                 Couldn&apos;t load this replay.
+                <br />
+                <span className="text-xs text-slate-300">{error}</span>
               </div>
             ) : !data ? (
               <div className="grid h-40 place-items-center rounded-xl border border-slate-200">
@@ -123,7 +128,9 @@ export function SessionReplayModal({ session, onClose }: { session: SessionRow; 
               Event log{data ? ` (${data.timeline.length})` : ""}
             </h3>
             <div className="flex max-h-[520px] flex-col gap-1 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50/60 p-2">
-              {!data ? (
+              {error ? (
+                <p className="px-2 py-4 text-center text-xs text-slate-400">Couldn&apos;t load event log.</p>
+              ) : !data ? (
                 <div className="grid h-20 place-items-center">
                   <Loader2 className="size-4 animate-spin text-slate-300" strokeWidth={2} />
                 </div>

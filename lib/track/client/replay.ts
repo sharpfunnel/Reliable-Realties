@@ -4,6 +4,7 @@ import { getSessionId } from "@/lib/track/client/ids";
 
 const FLUSH_INTERVAL_MS = 10000;
 const FLUSH_SIZE_THRESHOLD = 200;
+const MAX_BUFFERED_EVENTS = 1000;
 const REPLAY_ENDPOINT = "/api/replay";
 
 export async function initReplayCapture() {
@@ -11,13 +12,20 @@ export async function initReplayCapture() {
 
   let buffer: unknown[] = [];
 
+  function requeue(pending: unknown[]) {
+    // Keep pending (older) events before newly captured ones to preserve rrweb's event order.
+    buffer = [...pending, ...buffer].slice(-MAX_BUFFERED_EVENTS);
+  }
+
   function send(sync = false) {
     if (buffer.length === 0) return;
     const [clientId] = getSessionId();
-    const body = JSON.stringify({ clientId, events: buffer });
+    const pending = buffer;
     buffer = [];
+    const body = JSON.stringify({ clientId, events: pending });
 
     if (sync && "sendBeacon" in navigator) {
+      // sendBeacon gives no delivery feedback, so a batch lost here can't be retried.
       navigator.sendBeacon(REPLAY_ENDPOINT, new Blob([body], { type: "application/json" }));
       return;
     }
@@ -26,7 +34,11 @@ export async function initReplayCapture() {
       headers: { "Content-Type": "application/json" },
       body,
       keepalive: sync,
-    }).catch(() => {});
+    })
+      .then((res) => {
+        if (!res.ok) requeue(pending);
+      })
+      .catch(() => requeue(pending));
   }
 
   const stopRecording = record({

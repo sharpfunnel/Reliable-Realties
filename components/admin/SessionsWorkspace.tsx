@@ -349,18 +349,27 @@ export function SessionsWorkspace({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  // The open replay is derived straight from the `?session=` URL param (set
-  // when a row is clicked, or present on a shared deep link) rather than its
-  // own state — the modal opens/closes as a side effect of navigation instead
-  // of two sources of truth needing to stay in sync.
+  // The `?session=` URL param makes the open replay shareable/deep-linkable,
+  // but this route has no Suspense boundaries, so a router navigation only
+  // repaints once the page's server queries finish. Mirroring it into local
+  // state lets the modal open/close instantly while the URL catches up in
+  // the background — the DB round-trip no longer blocks the click.
   const activeSessionId = searchParams.get("session");
-  const activeSession = activeSessionId
-    ? (rows.find((row) => row.id === activeSessionId && row.hasReplay) ?? null)
+  const [openSessionId, setOpenSessionId] = useState(activeSessionId);
+  const [syncedSessionId, setSyncedSessionId] = useState(activeSessionId);
+  if (activeSessionId !== syncedSessionId) {
+    setSyncedSessionId(activeSessionId);
+    setOpenSessionId(activeSessionId);
+  }
+
+  const activeSession = openSessionId
+    ? (rows.find((row) => row.id === openSessionId && row.hasReplay) ?? null)
     : null;
 
   const openReplay = useCallback(
     (session: SessionRow) => {
       if (!session.hasReplay) return;
+      setOpenSessionId(session.id);
       const params = new URLSearchParams(searchParams.toString());
       params.set("session", session.id);
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
@@ -369,6 +378,7 @@ export function SessionsWorkspace({
   );
 
   const closeReplay = useCallback(() => {
+    setOpenSessionId(null);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("session");
     router.replace(params.size > 0 ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
