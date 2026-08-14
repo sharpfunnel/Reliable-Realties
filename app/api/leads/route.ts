@@ -4,6 +4,7 @@ import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/db";
 import { findOrCreateSession, sanitizeRawParams, upsertVisitor } from "@/lib/track/ingest";
 import { sendLeadConversionEvent } from "@/lib/meta/capi";
+import { LIVE_LEAD_SESSION_SELECT } from "@/lib/meta/capi-payload";
 import { isValidEmail, isValidName, isValidPhone } from "@/lib/validation";
 
 export const runtime = "nodejs";
@@ -52,44 +53,53 @@ export async function POST(request: Request) {
   let visitorId: string | undefined;
   let sessionId: string | undefined;
 
-  if (fingerprint) {
-    const visitor = await upsertVisitor(request, fingerprint, {
-      screenWidth: typeof device.screenWidth === "number" ? device.screenWidth : undefined,
-      screenHeight: typeof device.screenHeight === "number" ? device.screenHeight : undefined,
-      language: str(device.language),
-      timezone: str(device.timezone),
-      browser: str(device.browser),
-      browserVersion: str(device.browserVersion),
-      os: str(device.os),
-      osVersion: str(device.osVersion),
-      deviceType: str(device.deviceType),
-      network: str(device.network),
-      downlink: typeof device.downlink === "number" ? device.downlink : undefined,
-    });
-    visitorId = visitor.id;
-
-    if (clientId) {
-      const session = await findOrCreateSession(request, clientId, visitor.id, {
-        entryPath: str(sessionInit.entryPath),
-        referrer: str(sessionInit.referrer),
-        utmSource: str(sessionInit.utmSource),
-        utmMedium: str(sessionInit.utmMedium),
-        utmCampaign: str(sessionInit.utmCampaign),
-        utmContent: str(sessionInit.utmContent),
-        utmTerm: str(sessionInit.utmTerm),
-        gclid: str(sessionInit.gclid),
-        fbclid: str(sessionInit.fbclid),
-        msclkid: str(sessionInit.msclkid),
-        placement: str(sessionInit.placement),
-        metaCampaignId: str(sessionInit.metaCampaignId),
-        metaAdsetId: str(sessionInit.metaAdsetId),
-        metaAdId: str(sessionInit.metaAdId),
-        rawParams: sanitizeRawParams(sessionInit.rawParams),
-        viewportWidth: typeof sessionInit.viewportWidth === "number" ? sessionInit.viewportWidth : undefined,
-        viewportHeight: typeof sessionInit.viewportHeight === "number" ? sessionInit.viewportHeight : undefined,
+  // Session bookkeeping is best-effort: visitorId/sessionId are optional on
+  // Lead, so a failure here (duplicate-key race, transient database hiccup)
+  // must not cost us the lead itself.
+  try {
+    if (fingerprint) {
+      const visitor = await upsertVisitor(request, fingerprint, {
+        screenWidth: typeof device.screenWidth === "number" ? device.screenWidth : undefined,
+        screenHeight: typeof device.screenHeight === "number" ? device.screenHeight : undefined,
+        language: str(device.language),
+        timezone: str(device.timezone),
+        browser: str(device.browser),
+        browserVersion: str(device.browserVersion),
+        os: str(device.os),
+        osVersion: str(device.osVersion),
+        deviceType: str(device.deviceType),
+        network: str(device.network),
+        downlink: typeof device.downlink === "number" ? device.downlink : undefined,
       });
-      sessionId = session.id;
+      visitorId = visitor.id;
+
+      if (clientId) {
+        const session = await findOrCreateSession(request, clientId, visitor.id, {
+          entryPath: str(sessionInit.entryPath),
+          referrer: str(sessionInit.referrer),
+          utmSource: str(sessionInit.utmSource),
+          utmMedium: str(sessionInit.utmMedium),
+          utmCampaign: str(sessionInit.utmCampaign),
+          utmContent: str(sessionInit.utmContent),
+          utmTerm: str(sessionInit.utmTerm),
+          gclid: str(sessionInit.gclid),
+          fbclid: str(sessionInit.fbclid),
+          msclkid: str(sessionInit.msclkid),
+          placement: str(sessionInit.placement),
+          metaCampaignId: str(sessionInit.metaCampaignId),
+          metaAdsetId: str(sessionInit.metaAdsetId),
+          metaAdId: str(sessionInit.metaAdId),
+          rawParams: sanitizeRawParams(sessionInit.rawParams),
+          viewportWidth:
+            typeof sessionInit.viewportWidth === "number" ? sessionInit.viewportWidth : undefined,
+          viewportHeight:
+            typeof sessionInit.viewportHeight === "number" ? sessionInit.viewportHeight : undefined,
+        });
+        sessionId = session.id;
+      }
     }
+  } catch (error) {
+    console.error("[leads] session bookkeeping failed — saving lead unattached", error);
   }
 
   const lead = await prisma.lead.create({
@@ -105,7 +115,7 @@ export async function POST(request: Request) {
       source: str(body.source) ?? str(sessionInit.utmSource) ?? "website",
     },
     include: {
-      session: { select: { fbclid: true, ipAddress: true } },
+      session: { select: LIVE_LEAD_SESSION_SELECT },
     },
   });
 

@@ -67,8 +67,31 @@ model Session {
   /// platform or a custom param isn't lost just because it has no column here.
   rawParams      Json?
   ipAddress      String?
+  /// Raw User-Agent header. Meta's CAPI wants it unhashed alongside the IP —
+  /// the pair is a fallback identifier when em/ph fail to match. Visitor holds
+  /// parsed browser/os fields; those are for reporting, this is for matching.
+  userAgent      String?
+  /// Meta's `_fbp` browser-id cookie, written by the pixel. Captured verbatim
+  /// so CAPI can send it unhashed; it is the strongest identifier we have for
+  /// visitors who gave neither a matchable email nor phone.
+  fbp            String?
+  /// Meta's `_fbc` click-id cookie. Preferred over synthesizing `fb.1.<now>.
+  /// <fbclid>` from the stored fbclid, because the cookie carries the real
+  /// click timestamp and we never captured that separately.
+  fbc            String?
   viewportWidth  Int?
   viewportHeight Int?
+
+  /// Operator-assigned client quality: hot | warm | cold (app-enforced).
+  /// Set when an admin grades the session in the sessions table; it is what
+  /// drives the conversion value sent to Meta, and it is kept after sending so
+  /// the grade stays visible and re-sendable.
+  metaCapiQuality String?
+  /// Name of the event last sent for this session, so the table can show what
+  /// was reported without keeping a full delivery history.
+  metaCapiEvent   String?
+  metaCapiSentAt  DateTime?
+  metaCapiError   String?
 
   pageViews     PageView[]
   events        Event[]
@@ -202,6 +225,9 @@ model Lead {
 
   @@index([createdAt])
   @@index([status])
+  // The sessions table now resolves each session's most recent lead to decide
+  // whether it carries a matchable email/phone, so this lookup runs per page load.
+  @@index([sessionId])
 }
 
 model MouseEvent {

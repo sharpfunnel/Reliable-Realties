@@ -2,16 +2,19 @@ import "server-only";
 
 import { prisma } from "@/lib/db";
 import {
+  fetchAccountInsights,
   fetchAdSets,
   fetchAds,
   fetchCampaigns,
-  fetchInsights,
   refreshLongLivedToken,
   type MetaInsightRow,
 } from "@/lib/meta/client";
 
 const TOKEN_REFRESH_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
-const INSIGHTS_LOOKBACK_DAYS = 30;
+/** Must cover the widest range the admin UI offers (90D), or that view silently under-reports spend. */
+const INSIGHTS_LOOKBACK_DAYS = 90;
+/** How many insight rows to upsert concurrently — enough to matter, short of exhausting the pool. */
+const UPSERT_CONCURRENCY = 25;
 
 function num(value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
@@ -22,6 +25,12 @@ function num(value: string | undefined): number | undefined {
 function actionValue(row: MetaInsightRow, actionType: string): number | undefined {
   const entry = row.actions?.find((a) => a.action_type === actionType);
   return entry ? Number(entry.value) : undefined;
+}
+
+function videoViewValue(row: MetaInsightRow): number | undefined {
+  const entries = row.video_30_sec_watched_actions;
+  if (!entries?.length) return undefined;
+  return entries.reduce((sum, entry) => sum + Number(entry.value ?? 0), 0);
 }
 
 async function upsertInsight(
@@ -35,6 +44,22 @@ async function upsertInsight(
   const results = actionValue(row, "lead");
   const landingPageViews = actionValue(row, "landing_page_view");
 
+  const metrics = {
+    spend,
+    impressions: num(row.impressions),
+    reach: num(row.reach),
+    clicks: num(row.clicks),
+    linkClicks: num(row.inline_link_clicks),
+    landingPageViews,
+    ctr: num(row.ctr),
+    cpc: num(row.cpc),
+    cpm: num(row.cpm),
+    frequency: num(row.frequency),
+    videoViews: videoViewValue(row),
+    results,
+    costPerResult: results && spend ? spend / results : undefined,
+  };
+
   await prisma.metaInsight.upsert({
     where: { level_entityId_date: { level, entityId, date } },
     create: {
@@ -44,48 +69,40 @@ async function upsertInsight(
       campaignId: fk.campaignId,
       adSetId: fk.adSetId,
       adId: fk.adId,
-      spend,
-      impressions: num(row.impressions),
-      reach: num(row.reach),
-      clicks: num(row.clicks),
-      linkClicks: num(row.inline_link_clicks),
-      landingPageViews,
-      ctr: num(row.ctr),
-      cpc: num(row.cpc),
-      cpm: num(row.cpm),
-      frequency: num(row.frequency),
-      results,
-      costPerResult: results && spend ? spend / results : undefined,
+      ...metrics,
     },
-    update: {
-      spend,
-      impressions: num(row.impressions),
-      reach: num(row.reach),
-      clicks: num(row.clicks),
-      linkClicks: num(row.inline_link_clicks),
-      landingPageViews,
-      ctr: num(row.ctr),
-      cpc: num(row.cpc),
-      cpm: num(row.cpm),
-      frequency: num(row.frequency),
-      results,
-      costPerResult: results && spend ? spend / results : undefined,
-    },
+    update: metrics,
   });
 }
 
-async function syncInsightsFor(
+/**
+ * One paged request per level against the ad account node, instead of one per
+ * campaign/ad set/ad. Rows arrive tagged with `campaign_id`/`adset_id`/`ad_id`,
+ * which the caller's Meta-id → local-id maps turn back into foreign keys.
+ */
+async function syncInsightsForAccount(
   accessToken: string,
+  accountId: string,
   level: "campaign" | "adset" | "ad",
-  entityId: string,
-  fk: { campaignId?: string; adSetId?: string; adId?: string },
+  resolve: (row: MetaInsightRow) =>
+    | { entityId: string; fk: { campaignId?: string; adSetId?: string; adId?: string } }
+    | null,
 ) {
   const until = new Date().toISOString().slice(0, 10);
   const since = new Date(Date.now() - INSIGHTS_LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-  const rows = await fetchInsights(accessToken, entityId, level, since, until);
-  for (const row of rows) {
-    await upsertInsight(level, entityId, row, fk);
+  const rows = await fetchAccountInsights(accessToken, accountId, level, since, until);
+
+  for (let i = 0; i < rows.length; i += UPSERT_CONCURRENCY) {
+    await Promise.all(
+      rows.slice(i, i + UPSERT_CONCURRENCY).map((row) => {
+        const resolved = resolve(row);
+        // An entity created between the hierarchy fetch and the insights fetch
+        // has no local row yet; it will be picked up on the next sync.
+        if (!resolved) return undefined;
+        return upsertInsight(level, resolved.entityId, row, resolved.fk);
+      }),
+    );
   }
 }
 
@@ -107,6 +124,12 @@ async function syncAccount(account: { id: string; accountId: string; accessToken
   }
 
   const campaigns = await fetchCampaigns(accessToken, account.accountId);
+
+  // Meta id → local cuid, accumulated while walking the hierarchy so the
+  // account-level insight rows below can be attributed without extra queries.
+  const campaignIds = new Map<string, string>();
+  const adSetIds = new Map<string, { id: string; campaignId: string }>();
+  const adIds = new Map<string, { id: string; adSetId: string; campaignId: string }>();
 
   for (const c of campaigns) {
     const campaign = await prisma.campaign.upsert({
@@ -133,7 +156,7 @@ async function syncAccount(account: { id: string; accountId: string; accessToken
       },
     });
 
-    await syncInsightsFor(accessToken, "campaign", c.id, { campaignId: campaign.id });
+    campaignIds.set(c.id, campaign.id);
 
     const adSets = await fetchAdSets(accessToken, c.id);
     for (const as of adSets) {
@@ -161,7 +184,7 @@ async function syncAccount(account: { id: string; accountId: string; accessToken
         },
       });
 
-      await syncInsightsFor(accessToken, "adset", as.id, { campaignId: campaign.id, adSetId: adSet.id });
+      adSetIds.set(as.id, { id: adSet.id, campaignId: campaign.id });
 
       const ads = await fetchAds(accessToken, as.id);
       for (const ad of ads) {
@@ -189,14 +212,29 @@ async function syncAccount(account: { id: string; accountId: string; accessToken
           },
         });
 
-        await syncInsightsFor(accessToken, "ad", ad.id, {
-          campaignId: campaign.id,
-          adSetId: adSet.id,
-          adId: adRow.id,
-        });
+        adIds.set(ad.id, { id: adRow.id, adSetId: adSet.id, campaignId: campaign.id });
       }
     }
   }
+
+  await syncInsightsForAccount(accessToken, account.accountId, "campaign", (row) => {
+    const localId = row.campaign_id ? campaignIds.get(row.campaign_id) : undefined;
+    return localId ? { entityId: row.campaign_id!, fk: { campaignId: localId } } : null;
+  });
+
+  await syncInsightsForAccount(accessToken, account.accountId, "adset", (row) => {
+    const adSet = row.adset_id ? adSetIds.get(row.adset_id) : undefined;
+    return adSet
+      ? { entityId: row.adset_id!, fk: { campaignId: adSet.campaignId, adSetId: adSet.id } }
+      : null;
+  });
+
+  await syncInsightsForAccount(accessToken, account.accountId, "ad", (row) => {
+    const ad = row.ad_id ? adIds.get(row.ad_id) : undefined;
+    return ad
+      ? { entityId: row.ad_id!, fk: { campaignId: ad.campaignId, adSetId: ad.adSetId, adId: ad.id } }
+      : null;
+  });
 }
 
 export async function syncAllMetaAdAccounts() {

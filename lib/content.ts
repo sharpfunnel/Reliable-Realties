@@ -70,6 +70,8 @@ export const hero = {
     "IT corporate offices and showrooms in Nerul MIDC, Navi Mumbai.\nCodename Magnitude.",
   primaryCta: { label: "Contact us", href: "#contact-form" },
   secondaryCta: { label: "Book a Site Visit", href: "#contact-form" },
+  /** Location banner pinned to the top of the hero enquiry form. */
+  formHeadline: "This Property Is Located in Navi Mumbai",
   proof: {
     // PLACEHOLDER — confirm the real figure with Magnitude before launch.
     count: "500+",

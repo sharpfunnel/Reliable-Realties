@@ -13,6 +13,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { Eyebrow } from "@/components/ui/Section";
 import { Reveal } from "@/components/ui/Reveal";
 import { getDeviceInfo, getSessionInit } from "@/lib/track/client/device";
+import { trackError } from "@/lib/track/client/errors";
 import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
 import { isValidName, isValidPhone, sanitizeNameInput, sanitizePhoneInput } from "@/lib/validation";
 
@@ -60,7 +61,7 @@ export function Hero() {
       />
 
       <div className="relative mx-auto w-full max-w-[1200px]">
-        <div className="flex items-start justify-between gap-10">
+        <div className="flex flex-col items-start justify-between gap-10 lg:flex-row">
           {/* Headline stack */}
           <div className="flex max-w-[630px] flex-col gap-6 pt-2 lg:pt-[58px]">
             <Reveal y={16} blur={4}>
@@ -189,7 +190,11 @@ function ContactFormPreviewCard() {
       form.reset();
       setStatus("success");
       router.push(payload?.leadId ? `/thank-you?leadId=${payload.leadId}` : "/thank-you");
-    } catch {
+    } catch (err) {
+      // Surfaces in /admin/errors — without this a failed submit (in-app
+      // browsers especially) leaves no trace anywhere.
+      console.error("Lead submission failed", err);
+      trackError("lead_submit", err);
       setError("Something went wrong. Please try again.");
       setStatus("error");
     }
@@ -199,7 +204,7 @@ function ContactFormPreviewCard() {
     <Reveal
       delay={340}
       y={24}
-      className="hidden w-[440px] shrink-0 lg:block lg:pt-24"
+      className="w-full shrink-0 lg:w-[440px] lg:pt-24"
     >
       <form
         onSubmit={handleSubmit}
@@ -207,6 +212,13 @@ function ContactFormPreviewCard() {
         aria-label="Send us a message"
         className="group flex w-full flex-col rounded-[20px] bg-white/85 p-[30px] shadow-[var(--shadow-card)] backdrop-blur-[10px] transition-transform duration-300 ease-[var(--ease-out-soft)] hover:-translate-y-1"
       >
+        <div className="mb-4 flex items-start gap-2 rounded-[12px] bg-gold/10 px-3 py-2.5">
+          <Icon name="pin" className="mt-px size-4 shrink-0 text-gold" strokeWidth={1.6} />
+          <h3 className="font-display text-[15px] font-normal leading-[1.25] tracking-[-0.01em] text-ink">
+            {hero.formHeadline}
+          </h3>
+        </div>
+
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-display text-2xl font-normal leading-[1.15] tracking-[-0.0125em] text-ink">
             Send Us a Message

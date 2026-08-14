@@ -49,7 +49,12 @@ function requeue(pending: Batch) {
   }
 }
 
-function flush(sync = false) {
+/**
+ * `sync` picks the transport (beacon / keepalive fetch, no retry); `endSession`
+ * tells the server this is the visitor leaving. They come apart when we need to
+ * push something out mid-session before the tab can close — see `track.errorNow`.
+ */
+function flush(sync = false, endSession = sync) {
   if (batchSize() === 0) return;
 
   const pending = batch;
@@ -62,7 +67,7 @@ function flush(sync = false) {
     device: getDeviceInfo(),
     sessionInit: getSessionInit(),
     exitPath,
-    endSession: sync,
+    endSession,
     ...pending,
   };
 
@@ -122,6 +127,15 @@ export const track = {
     enqueue("perfMetrics", { ...data, createdAt: Date.now() }),
   error: (data: { type: string; message: string; stack?: string; path?: string }) =>
     enqueue("errors", { ...data, createdAt: Date.now() }),
+  /**
+   * Same as `error`, but sends right away instead of waiting for the next
+   * periodic flush — a failed form submit is often followed by the visitor
+   * closing the tab, which would take the queued error with it.
+   */
+  errorNow: (data: { type: string; message: string; stack?: string; path?: string }) => {
+    batch.errors.push({ ...data, createdAt: Date.now() });
+    flush(true, false);
+  },
   mouse: (data: { path: string; type: string; x: number; y: number; targetSelector?: string; hoverDuration?: number }) =>
     enqueue("mouseEvents", { ...data, createdAt: Date.now() }),
   heatmap: (data: {

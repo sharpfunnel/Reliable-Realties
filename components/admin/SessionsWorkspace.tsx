@@ -2,10 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Columns3, Download, PlayCircle, RotateCcw, Search } from "lucide-react";
+import { Columns3, Download, PlayCircle, RotateCcw, Search, Send } from "lucide-react";
 
 import { Table, Thead, Th, Tr, Td, EmptyState } from "@/components/admin/Table";
 import { SessionReplayModal } from "@/components/admin/SessionReplayModal";
+import {
+  SendSessionCapiBulkDialog,
+  SendSessionCapiModal,
+  type SendSessionCapiSession,
+} from "@/components/admin/SendSessionCapiModal";
+import { qualityGrade } from "@/lib/meta/capi-constants";
 import { cn } from "@/lib/cn";
 import type { SessionRow } from "@/lib/admin/queries";
 
@@ -87,6 +93,63 @@ function YesNo({ value }: { value: boolean }) {
   );
 }
 
+const QUALITY_BADGE: Record<string, string> = {
+  hot: "bg-red-50 text-red-600",
+  warm: "bg-amber-50 text-amber-700",
+  cold: "bg-sky-50 text-sky-600",
+};
+
+function QualityBadge({ quality }: { quality: string | null }) {
+  const grade = qualityGrade(quality);
+  if (!grade) return <span className="text-xs text-slate-300">—</span>;
+  return (
+    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", QUALITY_BADGE[grade.value])}>
+      {grade.label}
+    </span>
+  );
+}
+
+/** The row's CAPI delivery state, mirroring the leads table's Sent/Failed badge. */
+function CapiStatus({ session }: { session: SessionRow }) {
+  if (session.metaCapiError) {
+    return (
+      <span className="text-[11px] font-medium text-red-500" title={session.metaCapiError}>
+        Failed
+      </span>
+    );
+  }
+  if (session.metaCapiSentAt) {
+    return (
+      <span
+        className="text-[11px] font-medium text-emerald-600"
+        title={`${session.metaCapiEvent ?? "Event"} sent ${formatRelative(session.metaCapiSentAt)}`}
+      >
+        Sent
+      </span>
+    );
+  }
+  return null;
+}
+
+/** Narrows a table row to the display fields the grading modal needs. */
+function toSendSession(session: SessionRow): SendSessionCapiSession {
+  return {
+    id: session.id,
+    city: session.city,
+    country: session.country,
+    trafficSource: session.trafficSource,
+    totalDuration: session.totalDuration,
+    pagesViewed: session.pagesViewed,
+    maxScrollPct: session.maxScrollPct,
+    ctaClicked: session.ctaClicked,
+    formStarted: session.formStarted,
+    formSubmitted: session.formSubmitted,
+    capiIdentifiers: session.capiIdentifiers,
+    capiSendable: session.capiSendable,
+    metaCapiQuality: session.metaCapiQuality,
+  };
+}
+
 type Column = {
   key: string;
   label: string;
@@ -97,6 +160,8 @@ type Column = {
   /** Applied to both the header and the cells, so the two stay aligned. */
   align?: "center" | "right";
   className?: string;
+  /** Set on cells holding their own controls, so clicking one doesn't open the replay. */
+  stopRowClick?: boolean;
   title?: (session: SessionRow) => string | undefined;
   render: (session: SessionRow) => ReactNode;
 };
@@ -121,6 +186,24 @@ const COLUMNS: Column[] = [
       ) : (
         <span className="text-xs text-slate-300">—</span>
       ),
+  },
+  {
+    key: "capi",
+    label: "Meta CAPI",
+    pinned: true,
+    stopRowClick: true,
+    className: "whitespace-nowrap",
+    render: (session) => (
+      <span className="flex items-center gap-1.5">
+        <CapiStatus session={session} />
+        <SendSessionCapiModal session={toSendSession(session)} />
+      </span>
+    ),
+  },
+  {
+    key: "quality",
+    label: "Quality",
+    render: (session) => <QualityBadge quality={session.metaCapiQuality} />,
   },
   { key: "status", label: "Status", render: (session) => <StatusBadge status={session.status} /> },
   { key: "date", label: "Date", className: "whitespace-nowrap", render: (session) => formatDate(session.startedAt) },
@@ -274,6 +357,22 @@ const COLUMNS: Column[] = [
     title: (session) => session.visitorId,
     render: (session) => `v_${session.fingerprint.slice(0, 12)}`,
   },
+  {
+    key: "capiIdentifiers",
+    label: "Meta Match",
+    defaultHidden: true,
+    className: "text-xs text-slate-500",
+    title: (session) =>
+      session.capiSendable
+        ? undefined
+        : "Meta has no way to identify this visitor, so a conversion event would be discarded.",
+    render: (session) =>
+      session.capiIdentifiers.length > 0 ? (
+        session.capiIdentifiers.join(", ")
+      ) : (
+        <span className="text-slate-300">none</span>
+      ),
+  },
 ];
 
 const ALIGN_CLASS = { left: "", center: "text-center", right: "text-right" } as const;
@@ -383,6 +482,38 @@ export function SessionsWorkspace({
     params.delete("session");
     router.replace(params.size > 0 ? `${pathname}?${params.toString()}` : pathname, { scroll: false });
   }, [pathname, router, searchParams]);
+
+  // Selection is derived against `rows`, never held independently, so changing a
+  // filter can't leave sessions selected that the operator can no longer see —
+  // and therefore can't send.
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  const sendableRows = rows.filter((row) => row.capiSendable);
+  const selectedRows = rows.filter((row) => selectedIds.has(row.id));
+  const allSendableSelected =
+    sendableRows.length > 0 && sendableRows.every((row) => selectedIds.has(row.id));
+
+  const toggleRow = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  // Plain function, not a useCallback: `sendableRows` is rebuilt every render
+  // from props, and memoizing against it is what the React Compiler refuses to
+  // preserve. It compiles the memoization itself.
+  const toggleAllSendable = () => {
+    setSelectedIds((prev) => {
+      const everySelected = sendableRows.length > 0 && sendableRows.every((row) => prev.has(row.id));
+      return everySelected ? new Set() : new Set(sendableRows.map((row) => row.id));
+    });
+  };
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
   const exportQuery = new URLSearchParams();
   if (filters.range !== "all") exportQuery.set("days", filters.range);
@@ -506,9 +637,43 @@ export function SessionsWorkspace({
         </a>
       </div>
 
+      {selectedRows.length > 0 ? (
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-ink/15 bg-ink/[0.03] px-3 py-2.5">
+          <span className="text-xs font-medium text-slate-700">
+            {selectedRows.length} session{selectedRows.length === 1 ? "" : "s"} selected
+          </span>
+          <button
+            type="button"
+            onClick={() => setBulkOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-ink/90"
+          >
+            <Send className="size-3.5" strokeWidth={2} />
+            Grade and send to Meta
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="rounded-full px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100"
+          >
+            Clear
+          </button>
+        </div>
+      ) : null}
+
       <Table>
         <Thead>
           <Tr>
+            <Th className="w-8">
+              <input
+                type="checkbox"
+                checked={allSendableSelected}
+                onChange={toggleAllSendable}
+                disabled={sendableRows.length === 0}
+                aria-label="Select all sendable sessions"
+                title="Select every session on this page that Meta can match"
+                className="size-3.5 rounded border-slate-300"
+              />
+            </Th>
             {shownColumns.map((column) => (
               <Th key={column.key} className={ALIGN_CLASS[column.align ?? "left"]}>
                 {column.label}
@@ -522,11 +687,27 @@ export function SessionsWorkspace({
           ) : (
             rows.map((session) => (
               <Tr key={session.id} onClick={session.hasReplay ? () => openReplay(session) : undefined}>
+                <Td onClick={(event) => event.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(session.id)}
+                    onChange={() => toggleRow(session.id)}
+                    disabled={!session.capiSendable}
+                    aria-label={`Select session ${session.id}`}
+                    title={
+                      session.capiSendable
+                        ? undefined
+                        : "Meta has no way to identify this visitor, so it cannot be graded."
+                    }
+                    className="size-3.5 rounded border-slate-300 disabled:opacity-30"
+                  />
+                </Td>
                 {shownColumns.map((column) => (
                   <Td
                     key={column.key}
                     className={cn(ALIGN_CLASS[column.align ?? "left"], column.className)}
                     title={column.title?.(session)}
+                    onClick={column.stopRowClick ? (event) => event.stopPropagation() : undefined}
                   >
                     {column.render(session)}
                   </Td>
@@ -540,6 +721,16 @@ export function SessionsWorkspace({
       <p className="mt-3 text-xs text-slate-400">{rows.length} session{rows.length === 1 ? "" : "s"}</p>
 
       {activeSession ? <SessionReplayModal session={activeSession} onClose={closeReplay} /> : null}
+
+      {bulkOpen ? (
+        <SendSessionCapiBulkDialog
+          sessions={selectedRows.map(toSendSession)}
+          onClose={() => {
+            setBulkOpen(false);
+            clearSelection();
+          }}
+        />
+      ) : null}
     </>
   );
 }

@@ -10,6 +10,8 @@ import {
   LogOut,
   Repeat,
   UserPlus,
+  Wallet,
+  DollarSign,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/admin/PageHeader";
@@ -18,6 +20,7 @@ import { DateRangeSelect } from "@/components/admin/DateRangeSelect";
 import { LiveBadge } from "@/components/admin/LiveBadge";
 import { ConversionFunnel } from "@/components/admin/ConversionFunnel";
 import { TimeSeriesChart } from "@/components/admin/TimeSeriesChart";
+import { SpendChart } from "@/components/admin/SpendChart";
 import { DevicesDonut } from "@/components/admin/DevicesDonut";
 import { BarList } from "@/components/admin/BarList";
 import { WorldMap } from "@/components/admin/WorldMap";
@@ -35,6 +38,8 @@ import {
   getTopPages,
   getVisitorsByCountry,
 } from "@/lib/admin/queries";
+import { getDailySpendSeries, getMetaSummaryStats, hasConnectedAdAccount } from "@/lib/meta/queries";
+import { formatCurrency } from "@/lib/admin/format";
 
 const ALLOWED_RANGES = [7, 14, 30, 90];
 
@@ -54,19 +59,35 @@ export default async function AdminOverviewPage({
   const parsedDays = Number(rawDays);
   const days = ALLOWED_RANGES.includes(parsedDays) ? parsedDays : 30;
 
-  const [stats, series, sources, recentLeads, funnel, liveCount, devices, browsers, topPages, countries] =
-    await Promise.all([
-      getOverviewStats(days),
-      getDailyTimeSeries(days),
-      getTrafficSources(days),
-      getRecentLeads(10),
-      getFunnelStats(days, "all"),
-      getLiveVisitorCount(),
-      getDeviceBreakdown(days),
-      getBrowserBreakdown(days),
-      getTopPages(days),
-      getVisitorsByCountry(days),
-    ]);
+  const [
+    stats,
+    series,
+    sources,
+    recentLeads,
+    funnel,
+    liveCount,
+    devices,
+    browsers,
+    topPages,
+    countries,
+    adsConnected,
+    spendSeries,
+    metaStats,
+  ] = await Promise.all([
+    getOverviewStats(days),
+    getDailyTimeSeries(days),
+    getTrafficSources(days),
+    getRecentLeads(10),
+    getFunnelStats(days, "all"),
+    getLiveVisitorCount(),
+    getDeviceBreakdown(days),
+    getBrowserBreakdown(days),
+    getTopPages(days),
+    getVisitorsByCountry(days),
+    hasConnectedAdAccount(),
+    getDailySpendSeries(days),
+    getMetaSummaryStats(days),
+  ]);
 
   const { current, deltas } = stats;
 
@@ -124,6 +145,23 @@ export default async function AdminOverviewPage({
           value={current.newVisitors.toLocaleString()}
           delta={deltas.newVisitors}
         />
+        {adsConnected ? (
+          <>
+            <StatTile
+              icon={Wallet}
+              label="Ad Spend"
+              value={formatCurrency(current.adSpend, metaStats.currency)}
+              delta={deltas.adSpend}
+            />
+            <StatTile
+              icon={DollarSign}
+              label="Cost per Lead"
+              value={formatCurrency(current.costPerLead, metaStats.currency)}
+              subLabel="Spend ÷ leads captured"
+              delta={deltas.costPerLead}
+            />
+          </>
+        ) : null}
       </div>
 
       <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
@@ -136,6 +174,18 @@ export default async function AdminOverviewPage({
         </div>
         <TimeSeriesChart key={days} data={series} />
       </section>
+
+      {adsConnected ? (
+        <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+          <div className="mb-4">
+            <h2 className="text-sm font-semibold text-slate-800">Ad spend &amp; leads</h2>
+            <p className="mt-0.5 text-xs text-slate-400">
+              What Meta charged us each day, against the leads we captured.
+            </p>
+          </div>
+          <SpendChart key={days} data={spendSeries} currency={metaStats.currency} />
+        </section>
+      ) : null}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <section className="rounded-xl border border-slate-200 bg-white p-5">
