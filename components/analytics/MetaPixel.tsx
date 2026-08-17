@@ -36,7 +36,13 @@ export function MetaPixel() {
       return;
     }
     if (initialPathRef.current === pathname) return;
-    trackPixelPageView();
+    try {
+      trackPixelPageView();
+    } catch {
+      // Belt-and-braces: trackPixelPageView already guards its own fbq()
+      // call, but this must never be the thing that throws during a route
+      // change and blanks the page for a visitor mid-flow.
+    }
   }, [enabled, pathname]);
 
   if (!enabled) return null;

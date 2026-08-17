@@ -205,7 +205,7 @@ function ContactFormPreviewCard() {
         onSubmit={handleSubmit}
         data-form-id="hero-enquiry"
         aria-label="Send us a message"
-        className="group flex w-full flex-col rounded-[20px] bg-white/85 p-[30px] shadow-[var(--shadow-card)] backdrop-blur-[10px] transition-transform duration-300 ease-[var(--ease-out-soft)] hover:-translate-y-1"
+        className="group flex w-full flex-col rounded-[20px] bg-white/95 p-[30px] shadow-[var(--shadow-float)] ring-1 ring-inset ring-gold/25 backdrop-blur-[10px] transition-transform duration-300 ease-[var(--ease-out-soft)] hover:-translate-y-1"
       >
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-display text-2xl font-normal leading-[1.15] tracking-[-0.0125em] text-ink">
@@ -248,9 +248,9 @@ function ContactFormPreviewCard() {
             type="tel"
             placeholder="Phone Number *"
             required
-            pattern="(?=(?:\D*\d){10}\D*$)[0-9\s\-()]+"
-            title="Enter a valid 10-digit phone number"
-            maxLength={14}
+            pattern="\+?(?=(?:\D*\d){10,13}\D*$)[0-9\s\-()]+"
+            title="Enter a valid phone number (10 digits, with an optional country code)"
+            maxLength={16}
             inputMode="tel"
             autoComplete="tel"
             onChange={(e) => {

@@ -4,6 +4,10 @@ import { waitUntil } from "@vercel/functions";
 import { prisma } from "@/lib/db";
 import { findOrCreateSession, sanitizeRawParams, upsertVisitor } from "@/lib/track/ingest";
 import { sendLeadConversionEvent } from "@/lib/meta/capi";
+// TODO: lib/whatsapp/notify.ts is missing from the working tree (present
+// earlier in development, gone since — not something removed intentionally
+// here). Re-add `import { sendLeadWhatsAppNotification } from
+// "@/lib/whatsapp/notify";` and the waitUntil() call below once it's back.
 import { isValidEmail, isValidName, isValidPhone } from "@/lib/validation";
 
 export const runtime = "nodejs";

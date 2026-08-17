@@ -11,8 +11,8 @@ import {
 
 export async function getNavCounts() {
   const [leads, sessions] = await Promise.all([
-    prisma.lead.count(),
-    prisma.session.count(),
+    prisma.lead.count({ where: { NOT: { visitor: { isBot: true } } } }),
+    prisma.session.count({ where: { visitor: { isBot: false } } }),
   ]);
   return { leads, sessions };
 }
@@ -27,22 +27,24 @@ function daysAgo(days: number) {
 async function computeOverviewStats(gte: Date, lt: Date) {
   const [visitors, sessions, leads, scrollers, ctaClicks, sessionsAgg, bounces, sessionVisitors] =
     await Promise.all([
-      prisma.visitor.count({ where: { firstSeenAt: { gte, lt } } }),
-      prisma.session.count({ where: { startedAt: { gte, lt } } }),
-      prisma.lead.count({ where: { createdAt: { gte, lt } } }),
+      prisma.visitor.count({ where: { firstSeenAt: { gte, lt }, isBot: false } }),
+      prisma.session.count({ where: { startedAt: { gte, lt }, visitor: { isBot: false } } }),
+      prisma.lead.count({ where: { createdAt: { gte, lt }, NOT: { visitor: { isBot: true } } } }),
       prisma.scrollEvent.findMany({
-        where: { createdAt: { gte, lt }, depth: { gte: 50 } },
+        where: { createdAt: { gte, lt }, depth: { gte: 50 }, session: { visitor: { isBot: false } } },
         distinct: ["sessionId"],
         select: { sessionId: true },
       }),
-      prisma.ctaEvent.count({ where: { createdAt: { gte, lt }, action: "clicked" } }),
+      prisma.ctaEvent.count({
+        where: { createdAt: { gte, lt }, action: "clicked", session: { visitor: { isBot: false } } },
+      }),
       prisma.session.aggregate({
-        where: { startedAt: { gte, lt }, totalDuration: { not: null } },
+        where: { startedAt: { gte, lt }, totalDuration: { not: null }, visitor: { isBot: false } },
         _avg: { totalDuration: true },
       }),
-      prisma.session.count({ where: { startedAt: { gte, lt }, isBounce: true } }),
+      prisma.session.count({ where: { startedAt: { gte, lt }, isBounce: true, visitor: { isBot: false } } }),
       prisma.session.findMany({
-        where: { startedAt: { gte, lt } },
+        where: { startedAt: { gte, lt }, visitor: { isBot: false } },
         select: { visitor: { select: { isReturning: true } } },
         distinct: ["visitorId"],
       }),
@@ -98,13 +100,13 @@ export async function getOverviewStats(days = 30) {
 
 export async function getLiveVisitorCount() {
   const since = new Date(Date.now() - 5 * 60 * 1000);
-  return prisma.visitor.count({ where: { lastSeenAt: { gte: since } } });
+  return prisma.visitor.count({ where: { lastSeenAt: { gte: since }, isBot: false } });
 }
 
 export async function getDeviceBreakdown(days = 30) {
   const since = daysAgo(days);
   const sessions = await prisma.session.findMany({
-    where: { startedAt: { gte: since } },
+    where: { startedAt: { gte: since }, visitor: { isBot: false } },
     select: { visitor: { select: { deviceType: true } } },
   });
 
@@ -123,7 +125,7 @@ export async function getDeviceBreakdown(days = 30) {
 export async function getBrowserBreakdown(days = 30) {
   const since = daysAgo(days);
   const sessions = await prisma.session.findMany({
-    where: { startedAt: { gte: since } },
+    where: { startedAt: { gte: since }, visitor: { isBot: false } },
     select: { visitor: { select: { browser: true } } },
   });
 
@@ -214,7 +216,7 @@ export async function getTechStackData(days = 30) {
 
   const [sessions, leads] = await Promise.all([
     prisma.session.findMany({
-      where: { startedAt: { gte: since } },
+      where: { startedAt: { gte: since }, visitor: { isBot: false } },
       select: {
         id: true,
         isBounce: true,
@@ -326,16 +328,16 @@ export async function getTopPages(days = 30, limit = 10) {
   const [viewRows, entrySessions, leads] = await Promise.all([
     prisma.pageView.groupBy({
       by: ["path"],
-      where: { enteredAt: { gte: since } },
+      where: { enteredAt: { gte: since }, session: { visitor: { isBot: false } } },
       _count: { _all: true },
       _avg: { timeOnPage: true },
     }),
     prisma.session.findMany({
-      where: { startedAt: { gte: since }, entryPath: { not: null } },
+      where: { startedAt: { gte: since }, entryPath: { not: null }, visitor: { isBot: false } },
       select: { entryPath: true, isBounce: true },
     }),
     prisma.lead.findMany({
-      where: { createdAt: { gte: since }, sessionId: { not: null } },
+      where: { createdAt: { gte: since }, sessionId: { not: null }, NOT: { visitor: { isBot: true } } },
       select: { session: { select: { entryPath: true } } },
     }),
   ]);
@@ -377,11 +379,11 @@ export async function getVisitorsByCountry(days = 30) {
   const [visitors, leads] = await Promise.all([
     prisma.visitor.groupBy({
       by: ["country"],
-      where: { firstSeenAt: { gte: since } },
+      where: { firstSeenAt: { gte: since }, isBot: false },
       _count: { _all: true },
     }),
     prisma.lead.findMany({
-      where: { createdAt: { gte: since } },
+      where: { createdAt: { gte: since }, NOT: { visitor: { isBot: true } } },
       select: { visitor: { select: { country: true } } },
     }),
   ]);
@@ -406,15 +408,15 @@ export async function getDailyTimeSeries(days = 30) {
 
   const [visitors, sessions, leads] = await Promise.all([
     prisma.visitor.findMany({
-      where: { firstSeenAt: { gte: since } },
+      where: { firstSeenAt: { gte: since }, isBot: false },
       select: { firstSeenAt: true },
     }),
     prisma.session.findMany({
-      where: { startedAt: { gte: since } },
+      where: { startedAt: { gte: since }, visitor: { isBot: false } },
       select: { startedAt: true },
     }),
     prisma.lead.findMany({
-      where: { createdAt: { gte: since } },
+      where: { createdAt: { gte: since }, NOT: { visitor: { isBot: true } } },
       select: { createdAt: true },
     }),
   ]);
@@ -445,12 +447,12 @@ export async function getTrafficSources(days = 30) {
 
   const sessions = await prisma.session.groupBy({
     by: ["utmSource", "utmMedium", "utmCampaign"],
-    where: { startedAt: { gte: since } },
+    where: { startedAt: { gte: since }, visitor: { isBot: false } },
     _count: { _all: true },
   });
 
   const leads = await prisma.lead.findMany({
-    where: { createdAt: { gte: since }, sessionId: { not: null } },
+    where: { createdAt: { gte: since }, sessionId: { not: null }, NOT: { visitor: { isBot: true } } },
     select: {
       session: { select: { utmSource: true, utmMedium: true, utmCampaign: true } },
     },
@@ -657,7 +659,12 @@ export async function getLeadStats(range: LeadsDateRange) {
     prisma.lead.count({ where: { ...createdWhere, status: "qualified" } }),
     prisma.lead.count({ where: { ...createdWhere, status: "won" } }),
     prisma.lead.count({ where: { ...createdWhere, status: "lost" } }),
-    prisma.session.count({ where: range ? { startedAt: { gte: range.from, lte: range.to } } : undefined }),
+    prisma.session.count({
+      where: {
+        ...(range ? { startedAt: { gte: range.from, lte: range.to } } : {}),
+        visitor: { isBot: false },
+      },
+    }),
   ]);
 
   return {
@@ -888,18 +895,18 @@ export async function getSessionStats(days = 7) {
   const liveSince = new Date(Date.now() - LIVE_WINDOW_MS);
 
   const [total, live, returningSessions, durationAgg, bounces] = await Promise.all([
-    prisma.session.count({ where: { startedAt: { gte: since } } }),
-    prisma.visitor.count({ where: { lastSeenAt: { gte: liveSince } } }),
+    prisma.session.count({ where: { startedAt: { gte: since }, visitor: { isBot: false } } }),
+    prisma.visitor.count({ where: { lastSeenAt: { gte: liveSince }, isBot: false } }),
     prisma.session.findMany({
-      where: { startedAt: { gte: since }, visitor: { isReturning: true } },
+      where: { startedAt: { gte: since }, visitor: { isReturning: true, isBot: false } },
       distinct: ["visitorId"],
       select: { visitorId: true },
     }),
     prisma.session.aggregate({
-      where: { startedAt: { gte: since }, totalDuration: { not: null } },
+      where: { startedAt: { gte: since }, totalDuration: { not: null }, visitor: { isBot: false } },
       _avg: { totalDuration: true },
     }),
-    prisma.session.count({ where: { startedAt: { gte: since }, isBounce: true } }),
+    prisma.session.count({ where: { startedAt: { gte: since }, isBounce: true, visitor: { isBot: false } } }),
   ]);
 
   return {
@@ -1124,7 +1131,7 @@ export async function getCtaStats(days = 30) {
 
   const rows = await prisma.ctaEvent.groupBy({
     by: ["ctaId", "action"],
-    where: { createdAt: { gte: since } },
+    where: { createdAt: { gte: since }, session: { visitor: { isBot: false } } },
     _count: { _all: true },
   });
 
@@ -1147,7 +1154,7 @@ export async function getFormStats(days = 30) {
 
   const rows = await prisma.formEvent.groupBy({
     by: ["formId", "action"],
-    where: { createdAt: { gte: since } },
+    where: { createdAt: { gte: since }, session: { visitor: { isBot: false } } },
     _count: { _all: true },
   });
 
@@ -1187,17 +1194,18 @@ export async function getPerformanceStats(days = 30) {
 
   const results = await Promise.all(
     metrics.map(async (metric) => {
+      const botFilter = { session: { visitor: { isBot: false } } } as const;
       const [avg, good, needsImprovement, poor] = await Promise.all([
         prisma.performanceMetric.aggregate({
-          where: { metric, createdAt: { gte: since } },
+          where: { metric, createdAt: { gte: since }, ...botFilter },
           _avg: { value: true },
           _count: { _all: true },
         }),
-        prisma.performanceMetric.count({ where: { metric, rating: "good", createdAt: { gte: since } } }),
+        prisma.performanceMetric.count({ where: { metric, rating: "good", createdAt: { gte: since }, ...botFilter } }),
         prisma.performanceMetric.count({
-          where: { metric, rating: "needs-improvement", createdAt: { gte: since } },
+          where: { metric, rating: "needs-improvement", createdAt: { gte: since }, ...botFilter },
         }),
-        prisma.performanceMetric.count({ where: { metric, rating: "poor", createdAt: { gte: since } } }),
+        prisma.performanceMetric.count({ where: { metric, rating: "poor", createdAt: { gte: since }, ...botFilter } }),
       ]);
 
       return {
@@ -1219,7 +1227,7 @@ export async function getFunnelStats(days = 30, source: "all" | "meta" = "all") 
   const sourceFilter = source === "meta" ? { fbclid: { not: null } } : {};
 
   const sessions = await prisma.session.findMany({
-    where: { startedAt: { gte: since }, ...sourceFilter },
+    where: { startedAt: { gte: since }, visitor: { isBot: false }, ...sourceFilter },
     select: { id: true },
   });
   const sessionIds = sessions.map((s) => s.id);
@@ -1275,8 +1283,12 @@ export async function getFunnelStats(days = 30, source: "all" | "meta" = "all") 
 
 export type HeatmapDevice = "desktop" | "tablet" | "mobile";
 
+// isBot: false is unconditional here (not just when `device` is passed) so
+// every heatmap/scroll-depth query built on this helper excludes Meta's
+// crawler/prefetch traffic, which does fire these events when it executes
+// the page's JS.
 function sessionDeviceWhere(device?: HeatmapDevice) {
-  return device ? { session: { visitor: { deviceType: device } } } : {};
+  return { session: { visitor: { isBot: false, ...(device ? { deviceType: device } : {}) } } };
 }
 
 export async function getHeatmapPaths(days = 30) {
@@ -1285,13 +1297,13 @@ export async function getHeatmapPaths(days = 30) {
   const [heatmapPaths, viewCounts] = await Promise.all([
     prisma.heatmapEvent.groupBy({
       by: ["path"],
-      where: { createdAt: { gte: since } },
+      where: { createdAt: { gte: since }, session: { visitor: { isBot: false } } },
       _count: { _all: true },
       orderBy: { _count: { path: "desc" } },
     }),
     prisma.pageView.groupBy({
       by: ["path"],
-      where: { enteredAt: { gte: since } },
+      where: { enteredAt: { gte: since }, session: { visitor: { isBot: false } } },
       _count: { _all: true },
     }),
   ]);

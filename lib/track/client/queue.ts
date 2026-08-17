@@ -2,6 +2,7 @@
 
 import { getDeviceInfo, getSessionInit } from "@/lib/track/client/device";
 import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
+import { scheduleIdle } from "@/lib/track/client/schedule";
 
 const FLUSH_INTERVAL_MS = 5000;
 const FLUSH_SIZE_THRESHOLD = 20;
@@ -104,7 +105,11 @@ export function initQueue() {
 
 function enqueue<K extends keyof Batch>(key: K, item: Batch[K][number]) {
   batch[key].push(item);
-  if (batchSize() >= FLUSH_SIZE_THRESHOLD) flush(false);
+  // enqueue() runs synchronously inside interaction handlers (click, focus).
+  // flush() does real work (UA parsing, sessionStorage I/O, JSON.stringify) —
+  // deferring it off the triggering event's own task keeps that work from
+  // delaying the interaction's next paint.
+  if (batchSize() >= FLUSH_SIZE_THRESHOLD) scheduleIdle(() => flush(false));
 }
 
 export const track = {

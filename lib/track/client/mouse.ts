@@ -1,6 +1,7 @@
 "use client";
 
 import { track } from "@/lib/track/client/queue";
+import { scheduleIdle } from "@/lib/track/client/schedule";
 
 const RAGE_WINDOW_MS = 1000;
 const RAGE_THRESHOLD = 3;
@@ -52,15 +53,22 @@ export function initMouseTracking() {
     if (!target) return;
 
     const path = window.location.pathname;
-    const { xPct, yPct } = pagePct(e.clientX, e.clientY);
-    track.heatmap({
-      path,
-      type: "click",
-      xPct,
-      yPct,
-      viewportWidth: window.innerWidth,
-      selector: cssSelector(target),
-      text: elementLabel(target),
+    const { clientX, clientY } = e;
+    // pagePct() reads scrollWidth/scrollHeight (forced layout) and
+    // cssSelector()/elementLabel() walk the DOM — none of that needs to
+    // happen before the browser paints this click's own visual feedback, so
+    // it's deferred off the click's own task.
+    scheduleIdle(() => {
+      const { xPct, yPct } = pagePct(clientX, clientY);
+      track.heatmap({
+        path,
+        type: "click",
+        xPct,
+        yPct,
+        viewportWidth: window.innerWidth,
+        selector: cssSelector(target),
+        text: elementLabel(target),
+      });
     });
 
     // Rage click: 3+ clicks on the same element within RAGE_WINDOW_MS.
@@ -72,12 +80,14 @@ export function initMouseTracking() {
     if (timestamps.length >= RAGE_THRESHOLD && !rageCooldown.has(target)) {
       rageCooldown.add(target);
       setTimeout(() => rageCooldown.delete(target), RAGE_WINDOW_MS);
-      track.mouse({
-        path,
-        type: "rage_click",
-        x: e.clientX,
-        y: e.clientY,
-        targetSelector: cssSelector(target),
+      scheduleIdle(() => {
+        track.mouse({
+          path,
+          type: "rage_click",
+          x: clientX,
+          y: clientY,
+          targetSelector: cssSelector(target),
+        });
       });
     }
 
@@ -121,15 +131,19 @@ export function initMouseTracking() {
     if (now - lastHoverSample < HOVER_SAMPLE_INTERVAL_MS) return;
     lastHoverSample = now;
     const target = e.target as Element | null;
-    const { xPct, yPct } = pagePct(e.clientX, e.clientY);
-    track.heatmap({
-      path: window.location.pathname,
-      type: "hover",
-      xPct,
-      yPct,
-      viewportWidth: window.innerWidth,
-      selector: target ? cssSelector(target) : undefined,
-      text: target ? elementLabel(target) : undefined,
+    const path = window.location.pathname;
+    const { clientX, clientY } = e;
+    scheduleIdle(() => {
+      const { xPct, yPct } = pagePct(clientX, clientY);
+      track.heatmap({
+        path,
+        type: "hover",
+        xPct,
+        yPct,
+        viewportWidth: window.innerWidth,
+        selector: target ? cssSelector(target) : undefined,
+        text: target ? elementLabel(target) : undefined,
+      });
     });
   }
 

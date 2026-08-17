@@ -9,7 +9,8 @@ export function isValidPhone(value: string): boolean {
   const trimmed = value.trim();
   if (!PHONE_CHARS_RE.test(trimmed)) return false;
   const digits = trimmed.replace(/\D/g, "");
-  return digits.length === 10;
+  // 10-digit local number, optionally preceded by a 1-3 digit country code.
+  return digits.length >= 10 && digits.length <= 13;
 }
 
 const NAME_RE = /^[A-Za-z\s'.-]{2,}$/;
@@ -25,7 +26,8 @@ export function sanitizePhoneInput(value: string): string {
   for (const char of cleaned) {
     if (/[0-9]/.test(char)) {
       digitCount += 1;
-      if (digitCount > 10) continue;
+      // Allow up to a 3-digit country code ahead of the 10-digit number.
+      if (digitCount > 13) continue;
     }
     result += char;
   }

@@ -8,11 +8,16 @@ datasource db {
 }
 
 model Visitor {
-  id             String   @id @default(cuid())
-  fingerprint    String   @unique
-  firstSeenAt    DateTime @default(now())
-  lastSeenAt     DateTime @updatedAt
-  isReturning    Boolean  @default(false)
+  id             String    @id @default(cuid())
+  fingerprint    String    @unique
+  firstSeenAt    DateTime  @default(now())
+  lastSeenAt     DateTime  @updatedAt
+  isReturning    Boolean   @default(false)
+  /// Set when the request's IP falls in a known Meta/Facebook crawler range,
+  /// or the reported screen is an exact square (e.g. 2000x2000) — a pattern
+  /// no real device reports, but headless page-prefetch/link-preview
+  /// renderers commonly default to. Sticky: once true, never reset to false.
+  isBot          Boolean   @default(false)
   country        String?
   region         String?
   city           String?
@@ -20,6 +25,10 @@ model Visitor {
   language       String?
   browser        String?
   browserVersion String?
+  /// Raw User-Agent header, captured server-side so "Unknown" browser/os
+  /// buckets (e.g. an in-app browser parseBrowser doesn't recognize yet) can
+  /// be audited after the fact instead of only guessed at.
+  rawUserAgent   String?
   os             String?
   osVersion      String?
   deviceType     String?
@@ -39,36 +48,46 @@ model Visitor {
 }
 
 model Session {
-  id             String    @id @default(cuid())
-  clientId       String    @unique
-  visitorId      String
-  visitor        Visitor   @relation(fields: [visitorId], references: [id])
-  startedAt      DateTime  @default(now())
-  endedAt        DateTime?
-  totalDuration  Int?
-  isBounce       Boolean   @default(true)
-  pagesViewed    Int       @default(0)
-  entryPath      String?
-  exitPath       String?
-  referrer       String?
-  utmSource      String?
-  utmMedium      String?
-  utmCampaign    String?
-  utmContent     String?
-  utmTerm        String?
-  gclid          String?
-  fbclid         String?
-  msclkid        String?
-  placement      String?
-  metaCampaignId String?
-  metaAdsetId    String?
-  metaAdId       String?
+  id              String    @id @default(cuid())
+  clientId        String    @unique
+  visitorId       String
+  visitor         Visitor   @relation(fields: [visitorId], references: [id])
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  totalDuration   Int?
+  isBounce        Boolean   @default(true)
+  pagesViewed     Int       @default(0)
+  entryPath       String?
+  exitPath        String?
+  referrer        String?
+  utmSource       String?
+  utmMedium       String?
+  utmCampaign     String?
+  utmContent      String?
+  utmTerm         String?
+  gclid           String?
+  fbclid          String?
+  msclkid         String?
+  placement       String?
+  metaCampaignId  String?
+  metaAdsetId     String?
+  metaAdId        String?
   /// Every query param on the landing URL, verbatim. Catch-all so a new ad
   /// platform or a custom param isn't lost just because it has no column here.
-  rawParams      Json?
-  ipAddress      String?
-  viewportWidth  Int?
-  viewportHeight Int?
+  rawParams       Json?
+  ipAddress       String?
+  viewportWidth   Int?
+  viewportHeight  Int?
+  /// Meta's click-id cookie (_fbc), used as a CAPI match-quality signal.
+  fbc             String?
+  /// Meta's browser-id cookie (_fbp), used as a CAPI match-quality signal.
+  fbp             String?
+  /// Raw User-Agent header, sent unhashed as client_user_agent — a real CAPI match signal.
+  userAgent       String?
+  metaCapiEvent   String?
+  metaCapiQuality String?
+  metaCapiSentAt  DateTime?
+  metaCapiError   String?
 
   pageViews     PageView[]
   events        Event[]
@@ -202,6 +221,7 @@ model Lead {
 
   @@index([createdAt])
   @@index([status])
+  @@index([sessionId])
 }
 
 model MouseEvent {

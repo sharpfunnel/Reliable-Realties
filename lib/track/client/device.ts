@@ -1,9 +1,30 @@
 "use client";
 
+// In-app browsers (Facebook, Instagram, ...) append their own vendor token to
+// an otherwise normal Chrome/Safari UA, and iOS ones go further and strip the
+// "Version/... Safari" segment the generic Safari check below depends on —
+// so these must be checked first, by vendor token, rather than left to fall
+// through to "Unknown".
+const IN_APP_PATTERNS: [RegExp, string][] = [
+  [/FBAN|FBAV|FB_IAB/, "Facebook"],
+  [/Instagram/, "Instagram"],
+  [/BytedanceWebview|musical_ly|TikTok/, "TikTok"],
+  [/LinkedInApp/, "LinkedIn"],
+  [/Snapchat/, "Snapchat"],
+  [/\[LinE\]|Line\//, "Line"],
+  [/Twitter/, "Twitter"],
+  [/\bWhatsApp\//, "WhatsApp"],
+];
+
 function parseBrowser(ua: string): { browser: string; browserVersion?: string } {
+  for (const [re, name] of IN_APP_PATTERNS) {
+    if (re.test(ua)) return { browser: `${name} (in-app)` };
+  }
+
   const patterns: [RegExp, string][] = [
     [/Edg\/([\d.]+)/, "Edge"],
     [/OPR\/([\d.]+)/, "Opera"],
+    [/SamsungBrowser\/([\d.]+)/, "Samsung Internet"],
     [/Chrome\/([\d.]+)/, "Chrome"],
     [/CriOS\/([\d.]+)/, "Chrome"],
     [/Firefox\/([\d.]+)/, "Firefox"],
@@ -61,10 +82,24 @@ function parseDeviceType(ua: string): string {
   return "desktop";
 }
 
-export function getDeviceInfo() {
-  const ua = navigator.userAgent;
+// navigator.userAgent never changes mid-session, but getDeviceInfo() is
+// called synchronously from click-adjacent code (form submit handlers, the
+// tracking queue's threshold-triggered flush) — re-running ~20 regexes
+// against it on every call adds avoidable work to those interaction paths.
+let uaParseCache: { ua: string; browser: string; browserVersion?: string; os: string; osVersion?: string } | null =
+  null;
+
+function parseUa(ua: string) {
+  if (uaParseCache?.ua === ua) return uaParseCache;
   const { browser, browserVersion } = parseBrowser(ua);
   const { os, osVersion } = parseOS(ua);
+  uaParseCache = { ua, browser, browserVersion, os, osVersion };
+  return uaParseCache;
+}
+
+export function getDeviceInfo() {
+  const ua = navigator.userAgent;
+  const { browser, browserVersion, os, osVersion } = parseUa(ua);
   const { network, downlink } = getConnectionInfo();
 
   return {

@@ -28,7 +28,13 @@ export const META_PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID;
  */
 export function trackPixelPageView() {
   if (!META_PIXEL_ID) return;
-  window.fbq?.("trackSingle", META_PIXEL_ID, "PageView");
+  try {
+    window.fbq?.("trackSingle", META_PIXEL_ID, "PageView");
+  } catch {
+    // fbq is Meta's own script — e.g. the FB/IG in-app browser's native JS
+    // bridge can go away mid-session and make any call into it throw. A
+    // tracking failure here must never take down the page.
+  }
 }
 
 /**
@@ -41,5 +47,11 @@ export function trackPixelPageView() {
  */
 export function trackPixelLead(eventId: string) {
   if (!META_PIXEL_ID) return;
-  window.fbq?.("trackSingle", META_PIXEL_ID, "Lead", {}, { eventID: eventId });
+  try {
+    window.fbq?.("trackSingle", META_PIXEL_ID, "Lead", {}, { eventID: eventId });
+  } catch {
+    // Same rationale as trackPixelPageView — the lead is already saved
+    // server-side by this point, so a pixel throw must not surface as a
+    // submission failure.
+  }
 }

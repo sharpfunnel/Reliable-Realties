@@ -193,9 +193,9 @@ export function Contact() {
                 label="Phone Number"
                 placeholder="Phone Number *"
                 required
-                pattern="(?=(?:\D*\d){10}\D*$)[0-9\s\-()]+"
-                title="Enter a valid 10-digit phone number"
-                maxLength={14}
+                pattern="\+?(?=(?:\D*\d){10,13}\D*$)[0-9\s\-()]+"
+                title="Enter a valid phone number (10 digits, with an optional country code)"
+                maxLength={16}
                 inputMode="tel"
                 autoComplete="tel"
                 onChange={(e) => {
