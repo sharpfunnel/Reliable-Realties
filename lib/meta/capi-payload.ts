@@ -3,7 +3,13 @@ import "server-only";
 import { createHash } from "node:crypto";
 
 import type { Lead } from "@/generated/prisma/client";
-import { CUSTOM_EVENT_NAME_PATTERN, type ManualCapiOptions } from "@/lib/meta/capi-constants";
+import {
+  CUSTOM_EVENT_NAME_PATTERN,
+  DEFAULT_SESSION_EVENT_NAME,
+  qualityGrade,
+  type ManualCapiOptions,
+  type ManualSessionCapiOptions,
+} from "@/lib/meta/capi-constants";
 
 /**
  * Shared construction of Meta Conversions API payloads.
@@ -26,27 +32,91 @@ export function eventsEndpoint(pixelId: string) {
   return `https://graph.facebook.com/${graphVersion()}/${pixelId}/events`;
 }
 
+/**
+ * Country code prepended to bare national phone numbers before hashing.
+ * `lib/validation.ts` accepts exactly ten digits, so every number the public
+ * form stores is national-format and would otherwise hash to a value Meta can
+ * never match.
+ */
+export const DEFAULT_PHONE_COUNTRY_CODE =
+  process.env.META_PHONE_COUNTRY_CODE?.replace(/[^0-9]/g, "") || "91";
+
+/**
+ * Meta matches phone numbers on the full international number, digits only,
+ * country code included. Getting this wrong is silent: the hash is still valid,
+ * it just never collides with anything, and the event lands unmatched.
+ */
+export function normalizePhoneForHash(value: string): string {
+  const raw = value.trim();
+  const digits = raw.replace(/[^0-9]/g, "");
+  if (!digits) return "";
+
+  // A leading + or 00 means the number is already international.
+  if (raw.startsWith("+")) return digits;
+  if (digits.startsWith("00")) return digits.slice(2);
+
+  // Ten digits or fewer is a national number. Longer is ambiguous — it may
+  // already carry a country code — so leave it exactly as entered.
+  if (digits.length <= 10) return `${DEFAULT_PHONE_COUNTRY_CODE}${digits}`;
+  return digits;
+}
+
 // ---------------------------------------------------------------------------
 // Live sender payload
 // ---------------------------------------------------------------------------
 
 export type LeadWithSession = Lead & {
-  session?: { fbclid: string | null; ipAddress: string | null } | null;
+  session?: {
+    fbclid: string | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    fbp: string | null;
+    fbc: string | null;
+  } | null;
 };
 
+/** Everything the live sender reads off a lead. Keep in step with `LeadWithSession`. */
+export const LIVE_LEAD_SESSION_SELECT = {
+  fbclid: true,
+  ipAddress: true,
+  userAgent: true,
+  fbp: true,
+  fbc: true,
+} as const;
+
 /**
- * The exact body `sendLeadConversionEvent` POSTs. Extracted verbatim — key
- * order and field selection are unchanged, so the emitted JSON is identical to
- * what this integration has always sent.
+ * Resolves the `fbc` click identifier for a session.
+ *
+ * The `_fbc` cookie is authoritative: the pixel writes it at click time, so it
+ * carries the real click timestamp. Synthesizing one from a stored `fbclid` is
+ * the fallback for sessions that predate cookie capture or blocked the pixel —
+ * `createdAt` is the closest honest stand-in for a timestamp we never recorded.
+ */
+export function resolveFbc(
+  session: { fbc: string | null; fbclid: string | null } | null | undefined,
+  fallbackTime: Date,
+): string | undefined {
+  if (session?.fbc) return session.fbc;
+  if (session?.fbclid) return `fb.1.${fallbackTime.getTime()}.${session.fbclid}`;
+  return undefined;
+}
+
+/**
+ * The exact body `sendLeadConversionEvent` POSTs.
  */
 export function buildLeadEventBody(lead: LeadWithSession, accessToken: string) {
   const userData: Record<string, unknown> = {};
   if (lead.email) userData.em = [sha256(lead.email)];
-  if (lead.phone) userData.ph = [sha256(lead.phone.replace(/[^0-9]/g, ""))];
+  if (lead.phone) userData.ph = [sha256(normalizePhoneForHash(lead.phone))];
+  // external_id lets Meta tie repeat events for the same lead together even
+  // when every other identifier fails to match.
+  userData.external_id = [sha256(lead.id)];
   if (lead.session?.ipAddress) userData.client_ip_address = lead.session.ipAddress;
-  if (lead.session?.fbclid) {
-    userData.fbc = `fb.1.${Date.now()}.${lead.session.fbclid}`;
-  }
+  if (lead.session?.userAgent) userData.client_user_agent = lead.session.userAgent;
+  if (lead.session?.fbp) userData.fbp = lead.session.fbp;
+
+  const fbc = resolveFbc(lead.session, lead.createdAt);
+  if (fbc) userData.fbc = fbc;
 
   const body: Record<string, unknown> = {
     data: [
@@ -158,7 +228,7 @@ export function buildCapiPayload(input: CapiEventInput): CapiPayloadPreview {
   }
 
   hashInto("em", "email", input.user.email, (v) => v.trim().toLowerCase());
-  hashInto("ph", "phone", input.user.phone, digitsOnly);
+  hashInto("ph", "phone", input.user.phone, normalizePhoneForHash);
   hashInto("fn", "first name", input.user.firstName, normalizeText);
   hashInto("ln", "last name", input.user.lastName, normalizeText);
   hashInto("ct", "city", input.user.city, normalizeText);
@@ -211,16 +281,25 @@ export function buildCapiPayload(input: CapiEventInput): CapiPayloadPreview {
     warnings.push("event_id is blank, so this event cannot be deduplicated against a browser pixel event.");
   }
   if (input.user.phone?.trim()) {
-    const digits = digitsOnly(input.user.phone);
-    if (digits.length <= 10) {
+    const normalized = normalizePhoneForHash(input.user.phone);
+    if (normalized.length < 10) {
       warnings.push(
-        `Phone "${digits}" has no country code. Meta matches on the full international number, so this will hash to a value that never matches. Note: the live sender in lib/meta/capi.ts has the same behaviour.`,
+        `Phone normalizes to "${normalized}", which is too short to be a valid international number. It will hash to a value that never matches.`,
+      );
+    } else if (digitsOnly(input.user.phone).length <= 10 && !input.user.phone.trim().startsWith("+")) {
+      warnings.push(
+        `Phone had no country code, so "${DEFAULT_PHONE_COUNTRY_CODE}" was prepended before hashing (normalized: ${normalized}). Set META_PHONE_COUNTRY_CODE if this is the wrong country.`,
       );
     }
   }
   if (!input.user.fbc?.trim() && !input.user.fbp?.trim()) {
     warnings.push(
-      "No fbc or fbp. Match quality will be low. The site has no Meta Pixel installed, so _fbp is never captured, and the live sender synthesizes fbc from fbclid using the send time rather than the real click time.",
+      "No fbc or fbp. Match quality will be low. Both are read from the pixel's _fbp/_fbc cookies at session ingest, so this lead either predates cookie capture or blocked the pixel.",
+    );
+  }
+  if (!input.user.clientUserAgent?.trim()) {
+    warnings.push(
+      "No client_user_agent. Meta pairs it with client_ip_address as a fallback identifier, so sending the IP alone wastes most of that signal.",
     );
   }
   if (input.includeTestEventCode && !process.env.META_CAPI_TEST_EVENT_CODE) {
@@ -255,7 +334,16 @@ export const MANUAL_LEAD_SELECT = {
   source: true,
   createdAt: true,
   visitor: { select: { city: true, region: true, country: true } },
-  session: { select: { ipAddress: true, fbclid: true, entryPath: true } },
+  session: {
+    select: {
+      ipAddress: true,
+      fbclid: true,
+      entryPath: true,
+      userAgent: true,
+      fbp: true,
+      fbc: true,
+    },
+  },
 } as const;
 
 export type ManualCapiLead = {
@@ -266,7 +354,14 @@ export type ManualCapiLead = {
   source: string | null;
   createdAt: Date;
   visitor?: { city: string | null; region: string | null; country: string | null } | null;
-  session?: { ipAddress: string | null; fbclid: string | null; entryPath: string | null } | null;
+  session?: {
+    ipAddress: string | null;
+    fbclid: string | null;
+    entryPath: string | null;
+    userAgent: string | null;
+    fbp: string | null;
+    fbc: string | null;
+  } | null;
 };
 
 /** Thrown for operator input the modal should surface, not a server fault. */
@@ -326,14 +421,152 @@ export function buildManualCapiInput(
       country: lead.visitor?.country ?? undefined,
       externalId: lead.id,
       clientIpAddress: lead.session?.ipAddress ?? undefined,
-      // Matches how sendLeadConversionEvent synthesizes fbc from a stored
-      // fbclid: the real click timestamp was never captured.
-      fbc: lead.session?.fbclid ? `fb.1.${lead.createdAt.getTime()}.${lead.session.fbclid}` : undefined,
+      clientUserAgent: lead.session?.userAgent ?? undefined,
+      fbp: lead.session?.fbp ?? undefined,
+      fbc: resolveFbc(lead.session, lead.createdAt),
     },
     custom: {
       value: hasValue ? options.value : undefined,
       currency: hasValue ? currency : undefined,
       leadSource: lead.source ?? undefined,
+      orderId: options.orderId?.trim() || undefined,
+    },
+    includeTestEventCode: Boolean(process.env.META_CAPI_TEST_EVENT_CODE),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Session quality payload (the "Send" flow on /admin/sessions)
+// ---------------------------------------------------------------------------
+
+/** Everything the session sender reads off a session, in one place. */
+export const MANUAL_SESSION_SELECT = {
+  id: true,
+  startedAt: true,
+  entryPath: true,
+  ipAddress: true,
+  userAgent: true,
+  fbp: true,
+  fbc: true,
+  fbclid: true,
+  utmSource: true,
+  visitor: { select: { city: true, region: true, country: true } },
+  // Most sessions have no lead; the newest one is the best identity available
+  // when they do, because a later submission has the corrected contact details.
+  leads: {
+    select: { id: true, name: true, email: true, phone: true },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+  },
+} as const;
+
+export type ManualCapiSession = {
+  id: string;
+  startedAt: Date;
+  entryPath: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  fbp: string | null;
+  fbc: string | null;
+  fbclid: string | null;
+  utmSource: string | null;
+  visitor?: { city: string | null; region: string | null; country: string | null } | null;
+  leads?: { id: string; name: string | null; email: string | null; phone: string | null }[];
+};
+
+/**
+ * The identifiers Meta could actually match this session on, most valuable
+ * first. Used both to gate sending and to explain in the UI why a session
+ * cannot be sent.
+ *
+ * IP and user agent are deliberately excluded. Meta accepts them, but on their
+ * own they identify a household at best, and an event carrying nothing else is
+ * overwhelmingly likely to go unmatched — which drags the dataset's Event Match
+ * Quality down while reporting a conversion nobody can attribute.
+ */
+export function sessionMatchIdentifiers(session: ManualCapiSession): string[] {
+  const found: string[] = [];
+  const lead = session.leads?.[0];
+
+  if (lead?.email) found.push("email");
+  if (lead?.phone) found.push("phone");
+  if (session.fbc || session.fbclid) found.push("fbc");
+  if (session.fbp) found.push("fbp");
+
+  return found;
+}
+
+/** A session is sendable when Meta has at least one way to identify the person. */
+export function sessionIsMatchable(session: ManualCapiSession): boolean {
+  return sessionMatchIdentifiers(session).length > 0;
+}
+
+export function resolveSessionEventName(options: ManualSessionCapiOptions) {
+  if (options.eventType !== "Custom") return options.eventType;
+  const name = options.customEventName?.trim() || DEFAULT_SESSION_EVENT_NAME;
+  if (!CUSTOM_EVENT_NAME_PATTERN.test(name)) {
+    throw new ManualCapiInputError(
+      "Custom event names may only contain letters, numbers and underscores (max 50 characters).",
+    );
+  }
+  return name;
+}
+
+/**
+ * Turns a graded session into the same `CapiEventInput` every other path
+ * builds, so the preview, the single send and the bulk send all go through
+ * `buildCapiPayload` and cannot drift apart.
+ *
+ * `event_time` is *now* rather than `startedAt`: Meta rejects events older than
+ * seven days, and grading is something an operator does days after the visit.
+ * The conversion is being reported when they judge it, which is today.
+ */
+export function buildSessionCapiInput(
+  session: ManualCapiSession,
+  options: ManualSessionCapiOptions,
+  now = new Date(),
+): CapiEventInput {
+  const grade = qualityGrade(options.quality);
+  if (!grade) throw new ManualCapiInputError("Pick a quality grade.");
+
+  const lead = session.leads?.[0];
+  const [firstName, ...rest] = (lead?.name ?? "").trim().split(/\s+/).filter(Boolean);
+
+  // An explicit value overrides the grade, so an operator who knows a session
+  // is worth more than its band can say so without inventing a fourth grade.
+  const value = typeof options.value === "number" && Number.isFinite(options.value)
+    ? options.value
+    : grade.conversionValue;
+  const currency = options.currency?.trim() || "INR";
+
+  return {
+    eventName: resolveSessionEventName(options),
+    actionSource: "website",
+    // Dedup key. Meta dedups on the (event_name, event_id) pair, so re-grading
+    // and re-sending the same event collapses into one conversion instead of
+    // stacking, while a different event type for the same session still counts.
+    eventId: options.orderId?.trim() || session.id,
+    eventTime: Math.floor(now.getTime() / 1000),
+    eventSourceUrl: session.entryPath ?? undefined,
+    user: {
+      email: lead?.email ?? undefined,
+      phone: lead?.phone ?? undefined,
+      firstName: firstName ?? undefined,
+      lastName: rest.length > 0 ? rest.join(" ") : undefined,
+      city: session.visitor?.city ?? undefined,
+      state: session.visitor?.region ?? undefined,
+      country: session.visitor?.country ?? undefined,
+      externalId: session.id,
+      clientIpAddress: session.ipAddress ?? undefined,
+      clientUserAgent: session.userAgent ?? undefined,
+      fbp: session.fbp ?? undefined,
+      fbc: resolveFbc(session, session.startedAt),
+    },
+    custom: {
+      value,
+      currency,
+      contentName: grade.label,
+      leadSource: session.utmSource ?? undefined,
       orderId: options.orderId?.trim() || undefined,
     },
     includeTestEventCode: Boolean(process.env.META_CAPI_TEST_EVENT_CODE),

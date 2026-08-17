@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/admin/PageHeader";
 import { StatTile } from "@/components/admin/StatTile";
 import { Table, Thead, Th, Tr, Td, EmptyState } from "@/components/admin/Table";
 import { CapiComposer, type CapiComposerDefaults } from "@/components/admin/CapiComposer";
+import { resolveFbc } from "@/lib/meta/capi-payload";
 import {
   getCapiDeliveryCounts,
   getCapiDeliveryLog,
@@ -60,8 +61,11 @@ function defaultsFromLead(lead: CapiPrefillLead): CapiComposerDefaults {
     firstName: firstName ?? "",
     lastName: rest.join(" "),
     clientIpAddress: lead.session?.ipAddress ?? "",
-    // Matches how lib/meta/capi.ts synthesizes fbc from a stored fbclid.
-    fbc: lead.session?.fbclid ? `fb.1.${lead.createdAt.getTime()}.${lead.session.fbclid}` : "",
+    clientUserAgent: lead.session?.userAgent ?? "",
+    fbp: lead.session?.fbp ?? "",
+    // Same resolution the live sender uses: the captured _fbc cookie, else one
+    // synthesized from the stored fbclid.
+    fbc: resolveFbc(lead.session, lead.createdAt) ?? "",
     leadSource: lead.source ?? "",
   };
 }

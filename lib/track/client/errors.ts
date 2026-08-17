@@ -2,6 +2,23 @@
 
 import { track } from "@/lib/track/client/queue";
 
+/**
+ * Reports a caught error into the same pipeline as window-level errors, so it
+ * shows up in /admin/errors alongside them. Used where a `catch` would
+ * otherwise swallow a failure the visitor only sees as "something went wrong".
+ */
+export function trackError(type: string, error: unknown) {
+  const err = error instanceof Error ? error : undefined;
+  const message = (err?.message || String(error ?? "")).slice(0, 500) || "Unknown error";
+
+  track.errorNow({
+    type,
+    message,
+    stack: err?.stack,
+    path: window.location.pathname,
+  });
+}
+
 export function initErrorTracking() {
   function onError(event: ErrorEvent) {
     track.error({

@@ -12,6 +12,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { Reveal } from "@/components/ui/Reveal";
 import { Section, SectionHeader } from "@/components/ui/Section";
 import { getDeviceInfo, getSessionInit } from "@/lib/track/client/device";
+import { trackError } from "@/lib/track/client/errors";
 import { getSessionId, getVisitorId } from "@/lib/track/client/ids";
 import { isValidName, isValidPhone, sanitizeNameInput, sanitizePhoneInput } from "@/lib/validation";
 
@@ -80,7 +81,11 @@ export function Contact() {
       form.reset();
       setStatus("success");
       router.push(payload?.leadId ? `/thank-you?leadId=${payload.leadId}` : "/thank-you");
-    } catch {
+    } catch (err) {
+      // Surfaces in /admin/errors — without this a failed submit (in-app
+      // browsers especially) leaves no trace anywhere.
+      console.error("Lead submission failed", err);
+      trackError("lead_submit", err);
       setError("Something went wrong. Please try again.");
       setStatus("error");
     }

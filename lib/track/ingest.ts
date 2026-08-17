@@ -2,6 +2,7 @@ import "server-only";
 
 import { geolocation, ipAddress } from "@vercel/functions";
 
+import type { Session } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 
 export type ClientDeviceInfo = {
@@ -80,6 +81,47 @@ function looksLikeCrawler(ip: string, screenWidth?: number, screenHeight?: numbe
     screenWidth === screenHeight &&
     screenWidth >= 500
   );
+}
+
+/**
+ * Reads one cookie off the raw header. Only used for Meta's `_fbp`/`_fbc`,
+ * whose values are dot-separated ASCII (`fb.1.<ts>.<id>`), so no percent
+ * decoding is needed — and skipping it means a malformed cookie elsewhere in
+ * the header can't throw inside an ingestion request.
+ */
+function readCookie(request: Request, name: string): string | undefined {
+  const header = request.headers.get("cookie");
+  if (!header) return undefined;
+
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() !== name) continue;
+    const value = part.slice(eq + 1).trim();
+    return value.length > 0 ? value : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * The three fields Meta's Conversions API matches on that only exist on the
+ * HTTP request itself — they can't be reconstructed later from anything we
+ * store. `_fbp`/`_fbc` are written by the browser pixel, so on the very first
+ * request of a session they may not exist yet; see the backfill in
+ * `findOrCreateSession`.
+ */
+type MetaMatchIdentifiers = {
+  userAgent?: string;
+  fbp?: string;
+  fbc?: string;
+};
+
+function readMetaMatchIdentifiers(request: Request): MetaMatchIdentifiers {
+  return {
+    userAgent: request.headers.get("user-agent")?.slice(0, 1000) || undefined,
+    fbp: readCookie(request, "_fbp"),
+    fbc: readCookie(request, "_fbc"),
+  };
 }
 
 export type ClientSessionInit = {
@@ -195,8 +237,10 @@ export async function findOrCreateSession(
   visitorId: string,
   init: ClientSessionInit = {},
 ) {
+  const meta = readMetaMatchIdentifiers(request);
+
   const existing = await prisma.session.findUnique({ where: { clientId } });
-  if (existing) return existing;
+  if (existing) return backfillMetaMatchIdentifiers(existing, meta);
 
   // A genuinely new session for a visitor who already has an earlier one is
   // what "returning" should mean — checked once, here, rather than on every
@@ -208,6 +252,9 @@ export async function findOrCreateSession(
       data: {
         clientId,
         visitorId,
+        userAgent: meta.userAgent,
+        fbp: meta.fbp,
+        fbc: meta.fbc,
         entryPath: init.entryPath,
         referrer: init.referrer,
         utmSource: init.utmSource,
@@ -244,6 +291,39 @@ export async function findOrCreateSession(
     if (!isUniqueViolation(error)) throw error;
     const raced = await prisma.session.findUnique({ where: { clientId } });
     if (!raced) throw error;
-    return raced;
+    return backfillMetaMatchIdentifiers(raced, meta);
+  }
+}
+
+/**
+ * Fills in Meta match identifiers a session was created without.
+ *
+ * The session row is created by whichever request arrives first — usually the
+ * tracking beacon, which fires before the pixel snippet has finished loading
+ * and written `_fbp`. Without this, the cookie would be visible on every later
+ * request in the session and stored from none of them, and the lead's CAPI
+ * event would go out with no browser id.
+ *
+ * Only ever writes fields that are currently null, so a later request can't
+ * overwrite the first-touch `_fbc` with a fresher one, and returns the row
+ * untouched when there is nothing new — this runs on every session lookup.
+ */
+async function backfillMetaMatchIdentifiers(
+  session: Session,
+  meta: MetaMatchIdentifiers,
+): Promise<Session> {
+  const patch: MetaMatchIdentifiers = {};
+  if (!session.userAgent && meta.userAgent) patch.userAgent = meta.userAgent;
+  if (!session.fbp && meta.fbp) patch.fbp = meta.fbp;
+  if (!session.fbc && meta.fbc) patch.fbc = meta.fbc;
+
+  if (Object.keys(patch).length === 0) return session;
+
+  try {
+    return await prisma.session.update({ where: { id: session.id }, data: patch });
+  } catch {
+    // Best-effort enrichment: a failed backfill costs match quality on one
+    // event, and must never fail the tracking or lead request carrying it.
+    return { ...session, ...patch };
   }
 }

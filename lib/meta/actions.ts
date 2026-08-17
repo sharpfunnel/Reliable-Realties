@@ -9,11 +9,17 @@ import { buildCapiPayload, type CapiPayloadPreview } from "@/lib/meta/capi-paylo
 import {
   ACTION_SOURCES,
   CAPI_EVENT_TYPES,
+  SESSION_QUALITY_GRADES,
   type ManualCapiOptions,
+  type ManualSessionCapiOptions,
 } from "@/lib/meta/capi-constants";
 import {
   previewManualConversionEvent,
+  previewSessionConversionEvent,
   sendManualConversionEvent,
+  sendSessionConversionEvent,
+  sendSessionConversionEventsBulk,
+  type BulkSessionCapiResult,
   type ManualCapiPreview,
   type ManualCapiResult,
 } from "@/lib/meta/capi";
@@ -169,6 +175,87 @@ export async function sendManualCapiEvent(
   const result = await sendManualConversionEvent(leadId, parsed);
   if (result.ok && !result.preview) {
     revalidatePath("/admin/leads");
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Session quality grading (/admin/sessions)
+// ---------------------------------------------------------------------------
+
+/** Hard cap on one bulk send, so a runaway selection can't be posted blindly. */
+const MAX_BULK_SESSIONS = 500;
+
+function parseSessionOptions(
+  raw: ManualSessionCapiOptions,
+): ManualSessionCapiOptions | { error: string } {
+  const base = parseManualOptions(raw);
+  if ("error" in base) return base;
+
+  const quality = SESSION_QUALITY_GRADES.find((grade) => grade.value === raw?.quality)?.value;
+  if (!quality) return { error: "Pick a quality grade." };
+
+  return { ...base, quality };
+}
+
+/** Re-reads only ids that are actually strings, so a malformed array can't widen the query. */
+function parseSessionIds(raw: unknown): string[] | { error: string } {
+  if (!Array.isArray(raw)) return { error: "No sessions selected." };
+
+  const ids = [...new Set(raw.filter((id): id is string => typeof id === "string" && id.length > 0))];
+  if (ids.length === 0) return { error: "No sessions selected." };
+  if (ids.length > MAX_BULK_SESSIONS) {
+    return { error: `Select at most ${MAX_BULK_SESSIONS} sessions at a time.` };
+  }
+  return ids;
+}
+
+/** Builds the payload preview shown in the session modal. Sends nothing. */
+export async function previewSessionCapiEvent(
+  sessionId: string,
+  options: ManualSessionCapiOptions,
+): Promise<ManualCapiPreview | { error: string }> {
+  await verifyAdminSession();
+
+  const parsed = parseSessionOptions(options);
+  if ("error" in parsed) return parsed;
+
+  return previewSessionConversionEvent(sessionId, parsed);
+}
+
+/** Fires a graded conversion for one session. */
+export async function sendSessionCapiEvent(
+  sessionId: string,
+  options: ManualSessionCapiOptions,
+): Promise<ManualCapiResult> {
+  await verifyAdminSession();
+
+  const parsed = parseSessionOptions(options);
+  if ("error" in parsed) return { ok: false, error: parsed.error };
+
+  const result = await sendSessionConversionEvent(sessionId, parsed);
+  if (result.ok && !result.preview) {
+    revalidatePath("/admin/sessions");
+  }
+  return result;
+}
+
+/** Grades and reports a batch of selected sessions under one shared grade. */
+export async function sendSessionCapiEventsBulk(
+  sessionIds: string[],
+  options: ManualSessionCapiOptions,
+): Promise<BulkSessionCapiResult | { error: string }> {
+  await verifyAdminSession();
+
+  const ids = parseSessionIds(sessionIds);
+  if ("error" in ids) return ids;
+
+  const parsed = parseSessionOptions(options);
+  if ("error" in parsed) return parsed;
+
+  const result = await sendSessionConversionEventsBulk(ids, parsed);
+  if (result.sent > 0 && !result.preview) {
+    revalidatePath("/admin/sessions");
   }
   return result;
 }

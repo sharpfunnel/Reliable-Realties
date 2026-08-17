@@ -3,20 +3,27 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/admin/PageHeader";
 import { Table, Thead, Th, Tr, Td, EmptyState } from "@/components/admin/Table";
 import { getCampaignDetail } from "@/lib/meta/queries";
+import { formatCurrency } from "@/lib/admin/format";
 
-function currency(value: number, code = "INR") {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency: code, maximumFractionDigits: 2 }).format(
-    value,
-  );
-}
+// Per-ad CPC/CPM are small numbers — rounding them to whole rupees would erase
+// the differences the page exists to show.
+const currency = (value: number, code = "INR") => formatCurrency(value, code, 2);
+
+const ALLOWED_RANGES = [7, 14, 30, 90];
 
 export default async function AdminCampaignDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ days?: string }>;
 }) {
   const { id } = await params;
-  const campaign = await getCampaignDetail(id, 30);
+  const { days: rawDays } = await searchParams;
+  const parsedDays = Number(rawDays);
+  const days = ALLOWED_RANGES.includes(parsedDays) ? parsedDays : 30;
+
+  const campaign = await getCampaignDetail(id, days);
   if (!campaign) notFound();
 
   const currencyCode = campaign.adAccount.currency ?? "INR";
@@ -25,7 +32,7 @@ export default async function AdminCampaignDetailPage({
     <>
       <PageHeader
         title={campaign.name}
-        description={`${campaign.adAccount.name ?? campaign.adAccount.accountId} · ${campaign.objective ?? "—"} · ${campaign.status ?? "—"}`}
+        description={`${campaign.adAccount.name ?? campaign.adAccount.accountId} · ${campaign.objective ?? "—"} · ${campaign.status ?? "—"} · last ${days} days`}
       />
 
       {campaign.adSets.length === 0 ? (

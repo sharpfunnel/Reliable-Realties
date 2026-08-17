@@ -65,3 +65,66 @@ export type ManualCapiOptions = {
   /** Becomes the CAPI `event_id`, for dedup against a client-side Pixel event. */
   orderId?: string;
 };
+
+// ---------------------------------------------------------------------------
+// Session quality grading (the "Send" flow on /admin/sessions)
+// ---------------------------------------------------------------------------
+
+/**
+ * How an admin grades a visitor before reporting them to Meta.
+ *
+ * Meta cannot read time-on-page or scroll depth, and it would not understand
+ * them if it could — it learns from *who* converted and *what they were worth*.
+ * So engagement never travels as a parameter: the operator reads the session's
+ * signals, picks a grade, and the grade becomes `custom_data.value`. That
+ * number is the entire message, and it is what value-optimised campaigns bid
+ * against.
+ *
+ * The amounts are deliberately spread wide. Grades that sit close together give
+ * the optimiser almost nothing to separate, and a flat value teaches it nothing
+ * at all — which is the problem this whole flow exists to fix.
+ */
+export const SESSION_QUALITY_GRADES = [
+  {
+    value: "hot",
+    label: "Hot",
+    conversionValue: 5000,
+    hint: "Deep, deliberate visit — read the detail, returned, or engaged the form.",
+  },
+  {
+    value: "warm",
+    label: "Warm",
+    conversionValue: 1500,
+    hint: "Real interest but shallow — worth having more of, not a buyer yet.",
+  },
+  {
+    value: "cold",
+    label: "Cold",
+    conversionValue: 200,
+    hint: "Skimmed and left. Reported so Meta learns to find fewer like this.",
+  },
+] as const;
+
+export type SessionQualityGrade = (typeof SESSION_QUALITY_GRADES)[number]["value"];
+
+export function qualityGrade(value: string | null | undefined) {
+  return SESSION_QUALITY_GRADES.find((grade) => grade.value === value);
+}
+
+/**
+ * The event name a graded session is reported under by default.
+ *
+ * Not `Lead` — a session that never submitted the form is not a lead, and
+ * mixing the two would corrupt the signal the live sender already provides.
+ * A distinct custom event can be optimised for, or ignored, independently.
+ */
+export const DEFAULT_SESSION_EVENT_NAME = "QualifiedVisit";
+
+/**
+ * What the session modal collects. Like `ManualCapiOptions` this carries no
+ * identity: the session is referenced by id and every identifier (fbp, fbc, ip,
+ * user agent, and any linked lead's email/phone) is re-read server-side.
+ */
+export type ManualSessionCapiOptions = ManualCapiOptions & {
+  quality: SessionQualityGrade;
+};

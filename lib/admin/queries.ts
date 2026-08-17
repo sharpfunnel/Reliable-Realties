@@ -25,7 +25,7 @@ function daysAgo(days: number) {
 }
 
 async function computeOverviewStats(gte: Date, lt: Date) {
-  const [visitors, sessions, leads, scrollers, ctaClicks, sessionsAgg, bounces, sessionVisitors] =
+  const [visitors, sessions, leads, scrollers, ctaClicks, sessionsAgg, bounces, sessionVisitors, spendAgg] =
     await Promise.all([
       prisma.visitor.count({ where: { firstSeenAt: { gte, lt }, isBot: false } }),
       prisma.session.count({ where: { startedAt: { gte, lt }, visitor: { isBot: false } } }),
@@ -48,12 +48,19 @@ async function computeOverviewStats(gte: Date, lt: Date) {
         select: { visitor: { select: { isReturning: true } } },
         distinct: ["visitorId"],
       }),
+      // Campaign level only — summing every level would count the same spend
+      // three times over, once per campaign/ad set/ad row.
+      prisma.metaInsight.aggregate({
+        where: { level: "campaign", date: { gte, lt } },
+        _sum: { spend: true },
+      }),
     ]);
 
   const conversionRate = sessions > 0 ? (leads / sessions) * 100 : 0;
   const bounceRate = sessions > 0 ? (bounces / sessions) * 100 : 0;
   const returningVisitors = sessionVisitors.filter((s) => s.visitor.isReturning).length;
   const newVisitors = sessionVisitors.length - returningVisitors;
+  const adSpend = spendAgg._sum.spend ?? 0;
 
   return {
     visitors,
@@ -66,6 +73,9 @@ async function computeOverviewStats(gte: Date, lt: Date) {
     bounceRate,
     returningVisitors,
     newVisitors,
+    adSpend,
+    // Blended: our own captured leads, not Meta's self-reported `results`.
+    costPerLead: leads > 0 ? adSpend / leads : 0,
   };
 }
 
@@ -847,6 +857,16 @@ export type SessionRow = {
   formSubmitted: boolean;
   ctaClicked: boolean;
   hasReplay: boolean;
+  /** Newest lead this session produced, if any. */
+  leadId: string | null;
+  /** Identifiers Meta could match this session on, e.g. `["email", "fbp"]`. */
+  capiIdentifiers: string[];
+  /** False when Meta has no way to identify the visitor, so sending is pointless. */
+  capiSendable: boolean;
+  metaCapiQuality: string | null;
+  metaCapiEvent: string | null;
+  metaCapiSentAt: Date | null;
+  metaCapiError: string | null;
 };
 
 const LIVE_WINDOW_MS = 5 * 60 * 1000;
@@ -951,6 +971,9 @@ export async function getSessions(filters: SessionFilters = {}, limit = 300): Pr
       visitor: true,
       _count: { select: { replays: true } },
       pageViews: { orderBy: { enteredAt: "desc" }, take: 1 },
+      // Only for CAPI matchability: a session that produced a lead carries a
+      // hashable email/phone, which outranks every cookie identifier.
+      leads: { select: { id: true, email: true, phone: true }, orderBy: { createdAt: "desc" }, take: 1 },
     },
   });
 
@@ -1007,6 +1030,7 @@ export async function getSessions(filters: SessionFilters = {}, limit = 300): Pr
 
   return filtered.map((session) => {
     const scroll = scrollBySession.get(session.id);
+    const identifiers = sessionCapiIdentifiers(session);
     const status: SessionRow["status"] = session.isBounce
       ? "bounced"
       : !session.endedAt && session.visitor.lastSeenAt >= liveSince
@@ -1062,8 +1086,41 @@ export async function getSessions(filters: SessionFilters = {}, limit = 300): Pr
       formSubmitted: submittedForm.has(session.id),
       ctaClicked: ctaClickedSet.has(session.id),
       hasReplay: session._count.replays > 0,
+      leadId: session.leads[0]?.id ?? null,
+      capiIdentifiers: identifiers,
+      capiSendable: identifiers.length > 0,
+      metaCapiQuality: session.metaCapiQuality,
+      metaCapiEvent: session.metaCapiEvent,
+      metaCapiSentAt: session.metaCapiSentAt,
+      metaCapiError: session.metaCapiError,
     };
   });
+}
+
+/**
+ * Which identifiers Meta could match a session on, most valuable first.
+ *
+ * Mirrors `sessionMatchIdentifiers` in lib/meta/capi-payload.ts, which is the
+ * authority — that module is `server-only` and pulls the whole CAPI payload
+ * layer in, which this query has no business importing. The send path
+ * re-derives this server-side, so a drift here costs an inaccurate column, not
+ * a wrong send.
+ */
+function sessionCapiIdentifiers(session: {
+  fbp: string | null;
+  fbc: string | null;
+  fbclid: string | null;
+  leads: { email: string | null; phone: string | null }[];
+}): string[] {
+  const lead = session.leads[0];
+  const found: string[] = [];
+
+  if (lead?.email) found.push("email");
+  if (lead?.phone) found.push("phone");
+  if (session.fbc || session.fbclid) found.push("fbc");
+  if (session.fbp) found.push("fbp");
+
+  return found;
 }
 
 /**

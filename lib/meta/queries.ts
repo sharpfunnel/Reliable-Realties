@@ -14,6 +14,21 @@ export async function getMetaAdAccounts() {
   return prisma.metaAdAccount.findMany({ orderBy: { connectedAt: "desc" } });
 }
 
+/** Lets cost KPIs be hidden entirely rather than rendered as a misleading zero. */
+export async function hasConnectedAdAccount() {
+  return (await prisma.metaAdAccount.count({ where: { accessToken: { not: null } } })) > 0;
+}
+
+/** Currency of the most recently connected account, for formatting spend figures. */
+async function getReportingCurrency() {
+  const account = await prisma.metaAdAccount.findFirst({
+    where: { accessToken: { not: null } },
+    orderBy: { connectedAt: "desc" },
+    select: { currency: true },
+  });
+  return account?.currency ?? "INR";
+}
+
 // ---------------------------------------------------------------------------
 // Conversions API console (/admin/meta-capi)
 // ---------------------------------------------------------------------------
@@ -102,7 +117,14 @@ export type CapiPrefillLead = {
   phone: string | null;
   source: string | null;
   createdAt: Date;
-  session: { fbclid: string | null; ipAddress: string | null; entryPath: string | null } | null;
+  session: {
+    fbclid: string | null;
+    ipAddress: string | null;
+    entryPath: string | null;
+    userAgent: string | null;
+    fbp: string | null;
+    fbc: string | null;
+  } | null;
 };
 
 const PREFILL_SELECT = {
@@ -112,7 +134,9 @@ const PREFILL_SELECT = {
   phone: true,
   source: true,
   createdAt: true,
-  session: { select: { fbclid: true, ipAddress: true, entryPath: true } },
+  session: {
+    select: { fbclid: true, ipAddress: true, entryPath: true, userAgent: true, fbp: true, fbc: true },
+  },
 } as const;
 
 export async function getLeadsForCapiPreview(limit = 25): Promise<CapiPrefillLead[]> {
@@ -130,17 +154,20 @@ export async function getLeadForCapiPreview(leadId: string): Promise<CapiPrefill
 export async function getMetaSummaryStats(days = 30) {
   const since = daysAgo(days);
 
-  const agg = await prisma.metaInsight.aggregate({
-    where: { level: "campaign", date: { gte: since } },
-    _sum: {
-      spend: true,
-      impressions: true,
-      clicks: true,
-      linkClicks: true,
-      landingPageViews: true,
-      results: true,
-    },
-  });
+  const [agg, currency] = await Promise.all([
+    prisma.metaInsight.aggregate({
+      where: { level: "campaign", date: { gte: since } },
+      _sum: {
+        spend: true,
+        impressions: true,
+        clicks: true,
+        linkClicks: true,
+        landingPageViews: true,
+        results: true,
+      },
+    }),
+    getReportingCurrency(),
+  ]);
 
   const spend = agg._sum.spend ?? 0;
   const results = agg._sum.results ?? 0;
@@ -154,10 +181,89 @@ export async function getMetaSummaryStats(days = 30) {
     linkClicks: agg._sum.linkClicks ?? 0,
     landingPageViews: agg._sum.landingPageViews ?? 0,
     results,
+    currency,
     ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
     cpc: clicks > 0 ? spend / clicks : 0,
     costPerResult: results > 0 ? spend / results : 0,
   };
+}
+
+export type SpendSeriesPoint = {
+  date: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  /** Meta's own attributed lead count. */
+  results: number;
+  /** Leads we captured ourselves on an ad-tagged session. */
+  leads: number;
+};
+
+/**
+ * Daily spend paired with the leads we actually captured that day. `MetaInsight`
+ * already stores per-day rows; nothing aggregated them by date until now.
+ *
+ * Days with no data are pre-filled with zeroes so a gap renders as a flat run
+ * rather than silently compressing the x-axis — same convention as
+ * `getDailyTimeSeries` in lib/admin/queries.ts.
+ */
+export async function getDailySpendSeries(days = 30): Promise<SpendSeriesPoint[]> {
+  // Deliberately `daysAgo(days)`, not `days - 1`: every "last N days" figure in
+  // this admin panel means "since N days ago", so the window spans N+1 calendar
+  // days. Matching it is what keeps the chart's total equal to the Spend tile
+  // sitting directly above it.
+  const since = daysAgo(days);
+  const bucketCount = days + 1;
+
+  /**
+   * `MetaInsight.date` is a calendar date Meta reported in the ad account's
+   * timezone, stored as UTC midnight — so its day must be read in UTC. Lead
+   * timestamps are real instants and belong to the day the reader is living in.
+   * Bucketing both with `toISOString()` would shift the calendar days apart
+   * behind any timezone east of UTC and silently drop today's spend.
+   */
+  const utcDayKey = (d: Date) => d.toISOString().slice(0, 10);
+  const localDayKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  const [spendByDate, leads] = await Promise.all([
+    prisma.metaInsight.groupBy({
+      by: ["date"],
+      where: { level: "campaign", date: { gte: since } },
+      _sum: { spend: true, impressions: true, clicks: true, results: true },
+    }),
+    prisma.lead.findMany({
+      where: {
+        createdAt: { gte: since },
+        session: { OR: [{ metaCampaignId: { not: null } }, { utmCampaign: { not: null } }] },
+      },
+      select: { createdAt: true },
+    }),
+  ]);
+
+  const buckets = new Map<string, SpendSeriesPoint>();
+  for (let i = 0; i < bucketCount; i++) {
+    const d = new Date(since);
+    d.setDate(d.getDate() + i);
+    const key = localDayKey(d);
+    buckets.set(key, { date: key, spend: 0, impressions: 0, clicks: 0, results: 0, leads: 0 });
+  }
+
+  for (const row of spendByDate) {
+    const bucket = buckets.get(utcDayKey(row.date));
+    if (!bucket) continue;
+    bucket.spend += row._sum.spend ?? 0;
+    bucket.impressions += row._sum.impressions ?? 0;
+    bucket.clicks += row._sum.clicks ?? 0;
+    bucket.results += row._sum.results ?? 0;
+  }
+
+  for (const lead of leads) {
+    const bucket = buckets.get(localDayKey(lead.createdAt));
+    if (bucket) bucket.leads += 1;
+  }
+
+  return Array.from(buckets.values());
 }
 
 export async function getCampaignPerformance(days = 30) {

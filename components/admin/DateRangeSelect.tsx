@@ -12,14 +12,14 @@ const OPTIONS = [
 
 const DEFAULT_DAYS = 30;
 
-export function DateRangeSelect({ days }: { days: number }) {
+export function DateRangeSelect({ days, basePath = "/admin" }: { days: number; basePath?: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex gap-1 rounded-full bg-slate-100 p-1">
         {OPTIONS.map((opt) => (
           <Link
             key={opt.value}
-            href={opt.value === DEFAULT_DAYS ? "/admin" : `/admin?days=${opt.value}`}
+            href={opt.value === DEFAULT_DAYS ? basePath : `${basePath}?days=${opt.value}`}
             className={cn(
               "rounded-full px-3 py-1 text-xs font-medium transition-colors",
               days === opt.value ? "bg-ink text-white" : "text-slate-600 hover:bg-slate-200",
@@ -30,7 +30,7 @@ export function DateRangeSelect({ days }: { days: number }) {
         ))}
       </div>
       <Link
-        href="/admin"
+        href={basePath}
         className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
       >
         <RotateCcw className="size-3.5" strokeWidth={1.75} />
