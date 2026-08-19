@@ -563,7 +563,7 @@ export const faq = {
     {
       question: "Can I schedule a site visit?",
       answer:
-        "Yes. Call or WhatsApp us on +91 98191 81914 and our team will arrange a site visit at a time that suits you, and walk you through the units, plans and pricing.",
+        "Yes. Call us now or drop your details in the contact form and our team will arrange a site visit at a time that suits you, and walk you through the units, plans and pricing.",
     },
   ],
 } as const;
@@ -582,11 +582,11 @@ export const contact = {
     alt: "Codename Magnitude glass commercial tower against a clear sky",
   },
   details: [
-    { icon: "phone", label: "Call Us", value: site.phone, href: site.phoneHref },
+    { icon: "phone", label: "Call Us", value: "Call us now", href: site.phoneHref },
     {
       icon: "whatsapp",
       label: "WhatsApp",
-      value: site.phone,
+      value: "Message us on WhatsApp",
       href: site.whatsappHref,
       external: true,
     },
@@ -595,11 +595,6 @@ export const contact = {
       label: "Email Us",
       value: site.email,
       href: `mailto:${site.email}`,
-    },
-    {
-      icon: "pin",
-      label: "Visit Us",
-      value: `${site.addressLine1}\n${site.addressLine2}`,
     },
     {
       icon: "calendar",

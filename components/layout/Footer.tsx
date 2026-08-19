@@ -62,7 +62,7 @@ export function Footer() {
                   href={site.phoneHref}
                   className="text-[13px] text-ink transition-colors hover:text-gold"
                 >
-                  {site.phone}
+                  Call us now
                 </a>
               </li>
               <li className="flex items-center gap-3">
@@ -84,12 +84,6 @@ export function Footer() {
                 >
                   WhatsApp us
                 </a>
-              </li>
-              <li className="flex items-start gap-3">
-                <Icon name="mapPin" className="mt-0.5 size-4 shrink-0 text-gold" />
-                <address className="text-[13px] not-italic text-ink">
-                  {site.addressShort}
-                </address>
               </li>
             </ul>
           </Reveal>
