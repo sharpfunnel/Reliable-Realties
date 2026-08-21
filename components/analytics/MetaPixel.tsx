@@ -51,7 +51,14 @@ export function MetaPixel() {
     <>
       <Script
         id="meta-pixel"
-        strategy="afterInteractive"
+        // Measured the heaviest third-party script on the page by a wide
+        // margin: fbevents.js plus its own signals/config follow-up request
+        // account for well over half of mobile Total Blocking Time.
+        // `lazyOnload` defers it to browser idle time after the page has
+        // otherwise loaded — PageView still fires as soon as it loads, just
+        // a couple of seconds later, which doesn't meaningfully affect
+        // attribution.
+        strategy="lazyOnload"
         // Verbatim Meta snippet — an `id` is required for Next.js to track and
         // de-duplicate inline scripts.
         dangerouslySetInnerHTML={{

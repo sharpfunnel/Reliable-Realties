@@ -8,9 +8,13 @@ import Script from "next/script";
  *  - `GoogleTagManagerNoScript` — the iframe fallback, which must be the
  *    first element inside <body>.
  *
- * The loader uses the `afterInteractive` strategy (next/script's default):
- * it is fetched early but after hydration begins, so tag loading never blocks
- * first paint. This is the same trade-off `@next/third-parties` makes.
+ * The loader uses the `lazyOnload` strategy. Next.js's own docs list tag
+ * managers as a good fit for the default `afterInteractive`, but profiling
+ * this specific container showed it isn't just gtm.js: it fires a Meta Pixel
+ * tag whose fbevents.js + signals/config request measured as the single
+ * heaviest script on the page, well over half of mobile Total Blocking Time.
+ * `lazyOnload` defers the whole container (and everything it fires) to
+ * browser idle time after the page has otherwise loaded.
  */
 
 /** Container ID. Override per environment with NEXT_PUBLIC_GTM_ID if needed. */
@@ -20,7 +24,7 @@ export function GoogleTagManagerScript() {
   return (
     <Script
       id="google-tag-manager"
-      strategy="afterInteractive"
+      strategy="lazyOnload"
       // Verbatim GTM container snippet — an `id` is required for Next.js to
       // track and de-duplicate inline scripts.
       dangerouslySetInnerHTML={{
