@@ -22,14 +22,17 @@ export function Hero() {
       id="top"
       className="relative isolate overflow-hidden px-5 pt-[124px] pb-15 lg:min-h-[900px] lg:px-10 lg:pt-[100px]"
     >
-      {/* Backdrop */}
+      {/* Backdrop — this is the page's LCP element, so it's kept at the
+          75 default rather than the higher setting used elsewhere: on a
+          throttled mobile connection the extra bytes at 85/90 delay LCP
+          far more than they're visible under the gradient wash. */}
       <Image
         src="/images/hero-building.png"
         alt="Contemporary commercial building glowing at golden hour"
         fill
         priority
         sizes="100vw"
-        quality={90}
+        quality={75}
         className="-z-20 object-cover object-[70%_center]"
       />
 

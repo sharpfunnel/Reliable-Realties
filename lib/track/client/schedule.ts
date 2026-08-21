@@ -7,13 +7,13 @@
  * click/submit handler delays that interaction's next paint (INP) for no
  * user-visible benefit.
  */
-export function scheduleIdle(cb: () => void): void {
+export function scheduleIdle(cb: () => void, timeout = 1000): void {
   if (typeof window === "undefined") {
     cb();
     return;
   }
   if ("requestIdleCallback" in window) {
-    window.requestIdleCallback(cb, { timeout: 1000 });
+    window.requestIdleCallback(cb, { timeout });
   } else {
     setTimeout(cb, 0);
   }
