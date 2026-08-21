@@ -8,6 +8,7 @@ import { initErrorTracking } from "@/lib/track/client/errors";
 import { initFormTracking } from "@/lib/track/client/forms";
 import { initMouseTracking } from "@/lib/track/client/mouse";
 import { initReplayCapture } from "@/lib/track/client/replay";
+import { scheduleIdle } from "@/lib/track/client/schedule";
 import { initScrollTracking } from "@/lib/track/client/scroll";
 import { initWebVitals } from "@/lib/track/client/vitals";
 import { track } from "@/lib/track/client/queue";
@@ -53,7 +54,16 @@ export function Tracker() {
     initWebVitals();
     initErrorTracking();
     initMouseTracking();
-    initReplayCapture();
+
+    // Session replay is the heaviest tracker by far — it dynamically imports
+    // rrweb and takes a full DOM snapshot to start recording, which is real
+    // main-thread work. Deferring it to an idle moment keeps that work off
+    // the critical path that LCP/TBT are measured against; recording still
+    // starts within a second or so of load, it's just no longer competing
+    // with the page's own render and hydration.
+    scheduleIdle(() => {
+      initReplayCapture();
+    });
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);

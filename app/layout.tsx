@@ -10,23 +10,26 @@ import { site } from "@/lib/content";
 import { Tracker } from "@/components/track/Tracker";
 import "./globals.css";
 
-/* Display serif — hero and section headings */
+/* Display serif — hero and section headings. Only 400 (font-normal) and
+   500 (the display-* utilities' default, and font-medium) are ever used;
+   600 was dead weight competing for bandwidth with the weights the page
+   actually renders. */
 const cormorant = Cormorant_Garamond({
   variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  display: "swap",
-});
-
-/* Secondary serif — footer column headings */
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
   subsets: ["latin"],
   weight: ["400", "500"],
   display: "swap",
 });
 
-/* UI sans — body copy, labels, form controls */
+/* Secondary serif — footer column headings, always rendered at font-medium (500). */
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  weight: ["500"],
+  display: "swap",
+});
+
+/* UI sans — body copy, labels, form controls. */
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
