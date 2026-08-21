@@ -2,11 +2,11 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   images: {
-    // Next 16 only serves quality values declared here. Everything above the
-    // fold (hero, about) stays at the 75 default to keep bytes down where
-    // they compete with LCP/TBT; the Contact photo is lower down and gets a
-    // slightly higher setting since it's clear of the critical path.
-    qualities: [75, 85],
+    // Next 16 only serves quality values declared here. The large feature
+    // photographs (About, Contact) are rendered full-bleed below the fold, so
+    // they get a higher setting than the 75 default — bandwidth there doesn't
+    // compete with LCP. The hero backdrop stays at 75 since it's the LCP image.
+    qualities: [75, 85, 90],
   },
   // pdfkit reads its .afm font files from disk relative to its own module
   // directory — without this, bundling breaks that lookup at runtime.

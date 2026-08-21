@@ -83,7 +83,7 @@ export function About() {
             alt={about.feature.alt}
             fill
             sizes="(max-width: 1024px) 100vw, 612px"
-            quality={75}
+            quality={90}
             className="object-cover transition-transform duration-[1200ms] ease-[var(--ease-out-soft)] group-hover:scale-[1.04]"
           />
         </Reveal>

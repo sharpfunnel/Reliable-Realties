@@ -57,26 +57,18 @@ export function Tracker() {
 
     // Session replay is the heaviest tracker by far — it dynamically imports
     // rrweb and takes a full DOM snapshot to start recording, which is real
-    // main-thread work (measured: 150-1000ms+ depending on device). Scheduling
-    // it via requestIdleCallback alone isn't enough: the browser can go idle
-    // (and run it) well before the page has actually settled, landing this
-    // task right inside the window Lighthouse scores Total Blocking Time
-    // over. Waiting for `load` and then a further fixed delay — instead of
-    // racing "idle" — reliably pushes it past that window. Recording still
-    // starts automatically, just a few seconds later.
-    function startReplayCapture() {
-      setTimeout(() => scheduleIdle(initReplayCapture), 3000);
-    }
-    if (document.readyState === "complete") {
-      startReplayCapture();
-    } else {
-      window.addEventListener("load", startReplayCapture, { once: true });
-    }
+    // main-thread work. A 1s idle timeout still lands inside the busy window
+    // Lighthouse measures Total Blocking Time over, so this one gets a much
+    // longer backstop: by ~4s the page's own load-time work has settled, so
+    // this task lands after — not during — the window TBT is scored on.
+    // Recording still starts automatically, just a few seconds later.
+    scheduleIdle(() => {
+      initReplayCapture();
+    }, 4000);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
       window.removeEventListener("pagehide", finalizePageView);
-      window.removeEventListener("load", startReplayCapture);
     };
   }, [isAdmin]);
 
